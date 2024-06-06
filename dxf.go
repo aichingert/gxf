@@ -1,9 +1,10 @@
 package dxf
 
 import (
-    reader "github.com/aichingert/dxf/pkg/reader"
+    "github.com/aichingert/dxf/pkg/parser"
+    "github.com/aichingert/dxf/pkg/drawing"
 )
 
-func Open(filename string) {
-    reader.Open(filename)
+func Open(filename string) *drawing.Dxf {
+    return parser.FromFile(filename)
 }
