@@ -1,9 +1,10 @@
 package reader
 
 import (
+    "log"
     _ "os"
 )
 
-func Open(_filename string) {
-
+func Open(filename string) {
+    log.Println(filename)
 }
