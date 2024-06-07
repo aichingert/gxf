@@ -1,0 +1,69 @@
+= Header
+:toc:
+aichingert
+
+== Dfx header variables
+
+[cols="1,1,1"]
+|===
+| Variable
+| Group code
+| Description
+
+| $ACADMAINTVER
+| 70
+| maintenance (should be ignored)
+
+| $ACADVER
+| 1
+| Autocad drawing database version number (shown below)
+
+| $ANGBASE
+| 50
+| Specifies the compass direction east as the 0 angle.
+
+| $ANGDIR
+| 70
+| 1 -> Clockwise and 0 -> Counterclockwise angles
+
+
+|===
+
+
+=== Autocad database version number mappings
+
+[cols="1,1"]
+|===
+| Version
+| Database
+
+| AC1006 
+| R10
+
+| AC1009 
+| R11 and R12
+
+| AC1012 
+| R13
+
+| AC1014 
+| R14
+
+| AC1015 
+| AutoCAD 2000
+
+| AC1018 
+| AutoCAD 2004
+
+| AC1021 
+| AutoCAD 2007
+
+| AC1024 
+| AutoCAD 2010
+
+| AC1027 
+| AutoCAD 2013
+
+| AC1032 
+| AutoCAD 2018
+|===
