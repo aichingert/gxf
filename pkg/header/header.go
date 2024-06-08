@@ -8,9 +8,9 @@ type Header struct {
     // 
     ExtMax              [3]float64
     // 
-    LimMin              [3]float64
+    LimMin              [2]float64
     // 
-    LimMax              [3]float64
+    LimMax              [2]float64
 
 
     Modes               map[string]string
@@ -21,12 +21,14 @@ type Header struct {
 func New() *Header {
     header := new (Header)
 
+    header.LimMax  = [2]float64{0.0, 0.0}
+    header.LimMin  = [2]float64{0.0, 0.0}
+
     header.ExtMin  = [3]float64{0.0, 0.0, 0.0}
     header.ExtMax  = [3]float64{0.0, 0.0, 0.0}
-    header.LimMax  = [3]float64{0.0, 0.0, 0.0}
-    header.LimMin  = [3]float64{0.0, 0.0, 0.0}
     header.InsBase = [3]float64{0.0, 0.0, 0.0}
 
+    
     header.Modes = make(map[string]string)
     header.Variables = make(map[string]string)
     header.CustomProperties = make(map[string]string)

@@ -14,8 +14,6 @@ type Block struct {
     XrefPath    string
     Description string
     Coordinates [3]float64
-}
 
-func New() *Block {
-    return new (Block)
+    // TODO: ATTDEF
 }

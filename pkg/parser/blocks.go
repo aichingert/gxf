@@ -4,6 +4,7 @@ import (
     "log"
     "bufio"
     "strconv"
+    "strings"
 
     "github.com/aichingert/dxf/pkg/blocks"
     "github.com/aichingert/dxf/pkg/drawing"
@@ -29,7 +30,7 @@ func ParseBlocks(sc *bufio.Scanner, dxf *drawing.Dxf) {
 }
 
 func parseBlock(sc *bufio.Scanner, dxf *drawing.Dxf) {
-    block := blocks.New()
+    block := new (blocks.Block) 
 
     block.Handle = extractHex(sc, "5", "handle")
     block.Owner = extractHex(sc, "330", "owner")
@@ -49,10 +50,22 @@ func parseSubClass(sc *bufio.Scanner, block *blocks.Block) bool {
         parseAcDbBlockBegin(sc, block)
     case "ENDBLK":
         parseEndblk(sc, block)
+
+    // TODO: parse entities
+    case "ATTDEF":      fallthrough
+    case "LWPOLYLINE":  fallthrough
+    case "HATCH":       fallthrough
+    case "INSERT":      fallthrough
+    case "MTEXT":       fallthrough
+    case "LINE":
+        // TODO: currently skips to ENDBLK
+        parseAttDef(sc, block)
+
+        parseEndblk(sc, block)
     case "AcDbBlockEnd":
         return false
     default:
-        log.Fatal("[BLOCK] Failed to parse subClass: ", variable)
+        log.Fatal("[BLOCK] Failed to parse subClass: ", variable, " ", Line)
     }
 
     return true
@@ -75,7 +88,7 @@ func parseAcDbEntity(sc *bufio.Scanner, block *blocks.Block) {
 func parseAcDbBlockBegin(sc *bufio.Scanner, block *blocks.Block) {
     block.BlockName = ExtractCodeAndValue(sc)[1]
     block.Flag = ExtractCodeAndValue(sc)[1]
-    block.Coordinates = ExtractCoordinates(sc)
+    block.Coordinates = ExtractCoordinates3D(sc)
 
     // assumption is that this is the blockName again
     validate := ExtractCodeAndValue(sc)
@@ -97,10 +110,17 @@ func parseEndblk(sc *bufio.Scanner, block *blocks.Block) {
     }
 }
 
+// TODO: implement it (currently skips to next)
+func parseAttDef(sc *bufio.Scanner, block *blocks.Block) {
+    for sc.Scan() && sc.Text() != "ENDBLK" {
+        Line++
+    }
+}
+
 func extractHex(sc *bufio.Scanner, code string, description string) uint64 {
     value := ExtractCodeAndValue(sc)
 
-    if code != value[0] {
+    if code != strings.TrimSpace(value[0]) {
         log.Fatal("[BLOCK] parseBlock failed invalid group code: expected ", code, " got ", value)
     }
 

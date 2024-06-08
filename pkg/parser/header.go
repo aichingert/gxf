@@ -62,21 +62,19 @@ func ParseHeader(sc *bufio.Scanner, dxf *drawing.Dxf) {
         case "$CUSTOMPROPERTYTAG":
             parseCustomProperty(sc, dxf)
         case "$INSBASE":
-            dxf.Header.InsBase = ExtractCoordinates(sc)
+            dxf.Header.InsBase = ExtractCoordinates3D(sc)
         case "$EXTMAX":
-            dxf.Header.ExtMax  = ExtractCoordinates(sc)
+            dxf.Header.ExtMax  = ExtractCoordinates3D(sc)
         case "$EXTMIN":
-            dxf.Header.ExtMin  = ExtractCoordinates(sc)
+            dxf.Header.ExtMin  = ExtractCoordinates3D(sc)
         case "$LIMMIN":
-            dxf.Header.LimMin  = ExtractCoordinates(sc)
+            log.Println(variable)
+            dxf.Header.LimMin  = ExtractCoordinates2D(sc)
         case "$LIMMAX":
-            dxf.Header.LimMax  = ExtractCoordinates(sc)
+            dxf.Header.LimMax  = ExtractCoordinates2D(sc)
         case "ENDSEC":
             return
         default:
-            if sc.Err != nil {
-                log.Fatal("[HEADER] Scanner Failed: ", sc.Err)
-            }
             log.Println("[HEADER] Warning [NOT IMPLEMENTED]: ", variable)
         }
     }
