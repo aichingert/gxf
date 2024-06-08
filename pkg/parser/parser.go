@@ -27,8 +27,13 @@ func FromFile(filename string) *drawing.Dxf {
             switch section := ExtractCodeAndValue(scanner); section[1] {
             case "HEADER":
                 ParseHeader(scanner, dxf)
+            case "BLOCKS":
+                ParseBlocks(scanner, dxf)
+            case "CLASSES": fallthrough
+            case "TABLES": fallthrough
             default:
-                log.Fatal(section)
+                log.Println("WARNING: section not implemented: ", section)
+                SkipToNextSection(scanner)
             }
         default:
             log.Fatal(data)
@@ -36,6 +41,10 @@ func FromFile(filename string) *drawing.Dxf {
     }
 
     return dxf
+}
+
+func SkipToNextSection(sc *bufio.Scanner) {
+    for sc.Scan() && sc.Text() != "ENDSEC" {}
 }
 
 func ExtractCodeAndValue(sc *bufio.Scanner) [2]string {

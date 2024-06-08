@@ -13,6 +13,7 @@ type Header struct {
     LimMax              [3]float64
 
 
+    Modes               map[string]string
     Variables           map[string]string
     CustomProperties    map[string]string
 }
@@ -25,6 +26,8 @@ func New() *Header {
     header.LimMax  = [3]float64{0.0, 0.0, 0.0}
     header.LimMin  = [3]float64{0.0, 0.0, 0.0}
     header.InsBase = [3]float64{0.0, 0.0, 0.0}
+
+    header.Modes = make(map[string]string)
     header.Variables = make(map[string]string)
     header.CustomProperties = make(map[string]string)
 

@@ -1,6 +1,7 @@
 package test
 
 import (
+    "log"
     "testing"
 
     "github.com/aichingert/dxf"
@@ -9,5 +10,6 @@ import (
 func TestOpen(t *testing.T) {
     drawing := dxf.Open("test.dxf")
 
-    t.Fatalf(drawing)
+    log.Println(drawing)
+
 }
