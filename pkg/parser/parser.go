@@ -69,6 +69,22 @@ func ExtractCoordinates3D(sc *bufio.Scanner) [3]float64 {
     return coords
 }
 
+func ExtractHex(sc *bufio.Scanner, code string, description string) uint64 {
+    value := ExtractCodeAndValue(sc)
+
+    if code != strings.TrimSpace(value[0]) {
+        log.Fatal("[TO_HEX] failed: with invalid group code expected ", code, " got ", value)
+    }
+
+    val, err := strconv.ParseUint(strings.TrimSpace(value[1]), 16, 64)
+
+    if err != nil {
+        log.Fatal("[TO_HEX] failed: should be", description, " got (", value, ")")
+    }
+
+    return val
+}
+
 func ExtractCoordinates2D(sc *bufio.Scanner) [2]float64 {
     coords := [2]float64{0.0, 0.0}
     extractCoordinates(sc, coords[:], len(coords))

@@ -14,10 +14,8 @@ func parseCustomProperty(sc *bufio.Scanner, dxf *drawing.Dxf) {
 }
 
 func ParseHeader(sc *bufio.Scanner, dxf *drawing.Dxf) {
-    for true {
-        variable := ExtractCodeAndValue(sc)
-
-        switch variable[1] {
+    for {
+        switch variable := ExtractCodeAndValue(sc); variable[1] {
         case "$ACADVER":            fallthrough
         case "$ACADMAINTVER":       fallthrough
         case "$DWGCODEPAGE":        fallthrough

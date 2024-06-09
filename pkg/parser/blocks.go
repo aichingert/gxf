@@ -2,16 +2,14 @@ package parser
 
 import (
     "log"
-    "bufio"
-    "strconv"
-    "strings"
+    "bufio" 
 
     "github.com/aichingert/dxf/pkg/blocks"
     "github.com/aichingert/dxf/pkg/drawing"
 )
 
 func ParseBlocks(sc *bufio.Scanner, dxf *drawing.Dxf) {
-    for true {
+    for {
         variable := ExtractCodeAndValue(sc)
 
         switch variable[1] {
@@ -32,8 +30,8 @@ func ParseBlocks(sc *bufio.Scanner, dxf *drawing.Dxf) {
 func parseBlock(sc *bufio.Scanner, dxf *drawing.Dxf) {
     block := new (blocks.Block) 
 
-    block.Handle = extractHex(sc, "5", "handle")
-    block.Owner = extractHex(sc, "330", "owner")
+    block.Handle = ExtractHex(sc, "5", "handle")
+    block.Owner = ExtractHex(sc, "330", "owner")
 
     for parseSubClass(sc, block) {}
 
@@ -103,9 +101,9 @@ func parseAcDbBlockBegin(sc *bufio.Scanner, block *blocks.Block) {
 }
 
 func parseEndblk(sc *bufio.Scanner, block *blocks.Block) {
-    block.EndHandle = extractHex(sc, "5", "end handle")
+    block.EndHandle = ExtractHex(sc, "5", "end handle")
 
-    if block.Owner != extractHex(sc, "330", "end owner") {
+    if block.Owner != ExtractHex(sc, "330", "end owner") {
         log.Fatal("[BLOCK] Invalid assumption different end owners")
     }
 }
@@ -115,20 +113,4 @@ func parseAttDef(sc *bufio.Scanner, block *blocks.Block) {
     for sc.Scan() && sc.Text() != "ENDBLK" {
         Line++
     }
-}
-
-func extractHex(sc *bufio.Scanner, code string, description string) uint64 {
-    value := ExtractCodeAndValue(sc)
-
-    if code != strings.TrimSpace(value[0]) {
-        log.Fatal("[BLOCK] parseBlock failed invalid group code: expected ", code, " got ", value)
-    }
-
-    val, err := strconv.ParseUint(value[1], 16, 64)
-
-    if err != nil {
-        log.Fatal("[BLOCK] parseBlock failed invalid ", description, ": (", value, ")")
-    }
-
-    return val
 }
