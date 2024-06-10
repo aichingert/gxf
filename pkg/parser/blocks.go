@@ -2,52 +2,44 @@ package parser
 
 import (
     "log"
-    "bufio" 
 
     "github.com/aichingert/dxf/pkg/blocks"
     "github.com/aichingert/dxf/pkg/drawing"
 )
 
-func ParseBlocks(sc *bufio.Scanner, dxf *drawing.Dxf) {
+func ParseBlocks(r *Reader, dxf *drawing.Dxf) {
     for {
-        variable := ExtractCodeAndValue(sc)
-
-        switch variable[1] {
+        switch variable := r.ConsumeDxfLine(); variable.Line {
         case "BLOCK":
-            parseBlock(sc, dxf)
+            parseBlock(r, dxf)
         case "ENDSEC":
             return
         default:
-            if sc.Err != nil {
-                log.Fatal("[BLOCK] Scanner Failed: ", sc.Err)
-            }
             log.Println("[BLOCK] Warning not implemented: ", variable)
         }
 
     }
 }
 
-func parseBlock(sc *bufio.Scanner, dxf *drawing.Dxf) {
+func parseBlock(r *Reader, dxf *drawing.Dxf) {
     block := new (blocks.Block) 
 
-    block.Handle = ExtractHex(sc, "5", "handle")
-    block.Owner = ExtractHex(sc, "330", "owner")
+    block.Handle = r.ConsumeHex(5, "handle")
+    block.Owner = r.ConsumeHex(330, "owner")
 
-    for parseSubClass(sc, block) {}
+    for parseSubClass(r, block) {}
 
     dxf.Blocks = append(dxf.Blocks, block)
 }
 
-func parseSubClass(sc *bufio.Scanner, block *blocks.Block) bool {
-    variable := ExtractCodeAndValue(sc)
-
-    switch variable[1] {
+func parseSubClass(r *Reader, block *blocks.Block) bool {
+    switch variable := r.ConsumeDxfLine(); variable.Line {
     case "AcDbEntity":
-        parseAcDbEntity(sc, block)
+        parseAcDbEntity(r, block)
     case "AcDbBlockBegin":
-        parseAcDbBlockBegin(sc, block)
+        parseAcDbBlockBegin(r, block)
     case "ENDBLK":
-        parseEndblk(sc, block)
+        parseEndblk(r, block)
 
     // TODO: parse entities
     case "ATTDEF":      fallthrough
@@ -57,9 +49,9 @@ func parseSubClass(sc *bufio.Scanner, block *blocks.Block) bool {
     case "MTEXT":       fallthrough
     case "LINE":
         // TODO: currently skips to ENDBLK
-        parseAttDef(sc, block)
+        parseAttDef(r, block)
 
-        parseEndblk(sc, block)
+        parseEndblk(r, block)
     case "AcDbBlockEnd":
         return false
     default:
@@ -69,48 +61,46 @@ func parseSubClass(sc *bufio.Scanner, block *blocks.Block) bool {
     return true
 }
 
-func parseAcDbEntity(sc *bufio.Scanner, block *blocks.Block) {
-    optional := ExtractCodeAndValue(sc)
+func parseAcDbEntity(r *Reader, block *blocks.Block) {
+    optional := r.ConsumeDxfLine()
 
     // TODO: think about paper space visibility
-    if optional[0] != " 67" {
-        block.LayerName = optional[1]
+    if optional.Code != 67 {
+        block.LayerName = optional.Line
         return
     }
 
     // TODO: could lead to bug with start and end layername - seems like it is always the same
-    layerName := ExtractCodeAndValue(sc)
-    block.LayerName = layerName[1]
+    layerName := r.ConsumeDxfLine()
+    block.LayerName = layerName.Line
 }
 
-func parseAcDbBlockBegin(sc *bufio.Scanner, block *blocks.Block) {
-    block.BlockName = ExtractCodeAndValue(sc)[1]
-    block.Flag = ExtractCodeAndValue(sc)[1]
-    block.Coordinates = ExtractCoordinates3D(sc)
+func parseAcDbBlockBegin(r *Reader, block *blocks.Block) {
+    block.BlockName = r.ConsumeDxfLine().Line
+    block.Flag = r.ConsumeDxfLine().Line
+    block.Coordinates = r.ConsumeCoordinates3D()
 
     // assumption is that this is the blockName again
-    validate := ExtractCodeAndValue(sc)
+    validate := r.ConsumeDxfLine()
 
-    if block.BlockName != validate[1] {
+    if block.BlockName != validate.Line {
         log.Fatal("[BLOCK] Invalid assumption different block names")
     }
 
-    block.XrefPath = ExtractCodeAndValue(sc)[1]
+    block.XrefPath = r.ConsumeDxfLine().Line
 
     // TODO: use bufio.Reader to be able to peek at possible description
 }
 
-func parseEndblk(sc *bufio.Scanner, block *blocks.Block) {
-    block.EndHandle = ExtractHex(sc, "5", "end handle")
+func parseEndblk(r *Reader, block *blocks.Block) {
+    block.EndHandle = r.ConsumeHex(5, "end handle")
 
-    if block.Owner != ExtractHex(sc, "330", "end owner") {
+    if block.Owner != r.ConsumeHex(330, "end owner") {
         log.Fatal("[BLOCK] Invalid assumption different end owners")
     }
 }
 
 // TODO: implement it (currently skips to next)
-func parseAttDef(sc *bufio.Scanner, block *blocks.Block) {
-    for sc.Scan() && sc.Text() != "ENDBLK" {
-        Line++
-    }
+func parseAttDef(r *Reader, block *blocks.Block) {
+    r.SkipToLabel("ENDBLK")
 }

@@ -27,7 +27,6 @@ func New() *Header {
     header.ExtMin  = [3]float64{0.0, 0.0, 0.0}
     header.ExtMax  = [3]float64{0.0, 0.0, 0.0}
     header.InsBase = [3]float64{0.0, 0.0, 0.0}
-
     
     header.Modes = make(map[string]string)
     header.Variables = make(map[string]string)

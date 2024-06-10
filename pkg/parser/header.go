@@ -2,20 +2,19 @@ package parser
 
 import (
     "log"
-    "bufio"
 
     "github.com/aichingert/dxf/pkg/drawing"
 )
 
-func parseCustomProperty(sc *bufio.Scanner, dxf *drawing.Dxf) {
-    tag      := ExtractCodeAndValue(sc)
-    property := ExtractCodeAndValue(sc)
-    dxf.Header.CustomProperties[tag[1]] = property[1]
+func parseCustomProperty(r *Reader, dxf *drawing.Dxf) {
+    tag      := r.ConsumeDxfLine()
+    property := r.ConsumeDxfLine()
+    dxf.Header.CustomProperties[tag.Line] = property.Line
 }
 
-func ParseHeader(sc *bufio.Scanner, dxf *drawing.Dxf) {
+func ParseHeader(r *Reader, dxf *drawing.Dxf) {
     for {
-        switch variable := ExtractCodeAndValue(sc); variable[1] {
+        switch variable := r.ConsumeDxfLine(); variable.Line {
         case "$ACADVER":            fallthrough
         case "$ACADMAINTVER":       fallthrough
         case "$DWGCODEPAGE":        fallthrough
@@ -47,34 +46,33 @@ func ParseHeader(sc *bufio.Scanner, dxf *drawing.Dxf) {
         case "$DIMLIM":             fallthrough
 
         case "$LASTSAVEDBY":
-            data := ExtractCodeAndValue(sc)
-            dxf.Header.Variables[variable[1]] = data[1]
+            data := r.ConsumeDxfLine()
+            dxf.Header.Variables[variable.Line] = data.Line
         case "$ORTHOMODE":          fallthrough
         case "$REGENMODE":          fallthrough
         case "$FILLMODE":           fallthrough
         case "$QTEXTMODE":          fallthrough
         case "$MIRRTEXT":           fallthrough
         case "$ATTMODE":
-            data := ExtractCodeAndValue(sc)
-            dxf.Header.Modes[variable[1]] = data[1]
+            data := r.ConsumeDxfLine()
+            dxf.Header.Modes[variable.Line] = data.Line
         case "$CUSTOMPROPERTYTAG":
-            parseCustomProperty(sc, dxf)
+            parseCustomProperty(r, dxf)
         case "$INSBASE":
-            dxf.Header.InsBase = ExtractCoordinates3D(sc)
+            dxf.Header.InsBase = r.ConsumeCoordinates3D()
         case "$EXTMAX":
-            dxf.Header.ExtMax  = ExtractCoordinates3D(sc)
+            dxf.Header.ExtMax  = r.ConsumeCoordinates3D()
         case "$EXTMIN":
-            dxf.Header.ExtMin  = ExtractCoordinates3D(sc)
+            dxf.Header.ExtMin  = r.ConsumeCoordinates3D()
         case "$LIMMIN":
             log.Println(variable)
-            dxf.Header.LimMin  = ExtractCoordinates2D(sc)
+            dxf.Header.LimMin  = r.ConsumeCoordinates2D()
         case "$LIMMAX":
-            dxf.Header.LimMax  = ExtractCoordinates2D(sc)
+            dxf.Header.LimMax  = r.ConsumeCoordinates2D()
         case "ENDSEC":
             return
         default:
             log.Println("[HEADER] Warning [NOT IMPLEMENTED]: ", variable)
         }
     }
-
 }

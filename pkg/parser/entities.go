@@ -2,88 +2,87 @@ package parser
 
 import (
     "log"
-    "bufio"
 
     "github.com/aichingert/dxf/pkg/entity"
     "github.com/aichingert/dxf/pkg/drawing"
 )
 
-func ParseEntities(sc *bufio.Scanner, dxf *drawing.Dxf) {
+func ParseEntities(r *Reader, dxf *drawing.Dxf) {
     for {
-        switch variable := ExtractCodeAndValue(sc); variable[1] {
+        switch variable := r.ConsumeDxfLine(); variable.Line {
         case "LINE":
-            ParseLine(sc, dxf)
+            ParseLine(r, dxf)
         case "LWPOLYLINE":
-            ParsePolyline(sc, dxf)
+            ParsePolyline(r, dxf)
         default:
             log.Fatal("[ENTITIES] ", Line, ": ", variable)
         }
     }
-    _ = dxf
 }
 
-func parseAcDbEntityE(sc *bufio.Scanner, entity entity.Entity) {
-    _ = ExtractCodeAndValue(sc)
-    optional := ExtractCodeAndValue(sc)
+func parseAcDbEntityE(r *Reader, entity entity.Entity) {
+    _ = r.ConsumeDxfLine()
+    optional := r.ConsumeDxfLine()
 
     // TODO: think about paper space visibility
-    if optional[0] != " 67" {
-        entity.SetLayerName(optional[1])
+    if optional.Code != 67 {
+        entity.SetLayerName(optional.Line)
         return
     }
 
     // TODO: could lead to bug with start and end layername - seems like it is always the same
-    layerName := ExtractCodeAndValue(sc)
-    entity.SetLayerName(layerName[1])
+    layerName := r.ConsumeDxfLine()
+    entity.SetLayerName(layerName.Line)
 }
 
-func extractHandleAndOwner(sc *bufio.Scanner) [2]uint64 {
+func extractHandleAndOwner(r *Reader) [2]uint64 {
     return [2]uint64{
-        ExtractHex(sc, "5", "handle"),
-        ExtractHex(sc, "330", "owner ptr"),
+        r.ConsumeHex(5, "handle"),
+        r.ConsumeHex(330, "owner ptr"),
     }
 }
 
-func ParseLine(sc *bufio.Scanner, dxf *drawing.Dxf) {
-    result := extractHandleAndOwner(sc)
+func ParseLine(r *Reader, dxf *drawing.Dxf) {
+    result := extractHandleAndOwner(r)
     line   := entity.NewLine(result[0], result[1])
 
-    parseAcDbEntityE(sc, line)
+    parseAcDbEntityE(r, line)
 
-    check := ExtractCodeAndValue(sc)
+    check := r.ConsumeDxfLine()
 
-    if check[1] != "AcDbLine" {
+    if check.Line != "AcDbLine" {
         log.Fatal("[ENTITIES(", Line, ")] Expected AcDbLine got ", check)
     }
 
-    line.Src = ExtractCoordinates3D(sc)
-    line.Dst = ExtractCoordinates3D(sc)
+    line.Src = r.ConsumeCoordinates3D()
+    line.Dst = r.ConsumeCoordinates3D()
 
     dxf.Lines = append(dxf.Lines, line)
 }
 
-func ParsePolyline(sc *bufio.Scanner, dxf *drawing.Dxf) {
-    result   := extractHandleAndOwner(sc)
+func ParsePolyline(r *Reader, dxf *drawing.Dxf) {
+    result   := extractHandleAndOwner(r)
     polyline := entity.NewPolyline(result[0], result[1])
 
-    parseAcDbEntityE(sc, polyline)
-    check := ExtractCodeAndValue(sc)
+    parseAcDbEntityE(r, polyline)
+    check := r.ConsumeDxfLine()
 
-    if check[1] != "AcDbPolyline" {
+    if check.Line != "AcDbPolyline" {
         log.Fatal("[ENTITIES(", Line, ")] Expected AcDbPolyline got ", check)
     }
 
-    polyline.Vertices = ExtractHex(sc, "90", "number of vertices")
-    polyline.Flag = ExtractHex(sc, "70", "polyline flag")
+    polyline.Vertices = r.ConsumeHex(90, "number of vertices")
+    polyline.Flag = r.ConsumeHex(70, "polyline flag")
 
     // expecting code 43
-    if ExtractCodeAndValue(sc)[0] != " 43" {
+    if r.ConsumeDxfLine().Code != 43 {
         log.Fatal("[ENTITIES] TODO: implement line width for each vertex")
     }
 
     for i := uint64(0); i < polyline.Vertices; i++ {
-        line := ExtractCoordinates2D(sc)
-        polyline.Coordinates = append(polyline.Coordinates, line)
+        _ = r.ConsumeCoordinates2D()
+
+        // polyline.Coordinates = append(polyline.Coordinates, line)
 
         // TODO: sometimes there is a bulge value for a vertex
     }
