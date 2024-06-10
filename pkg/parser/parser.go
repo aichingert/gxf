@@ -1,12 +1,7 @@
 package parser
 
 import (
-    "os"
-
     "log"
-    "bufio"
-    "strconv"
-    "strings"
 
     "github.com/aichingert/dxf/pkg/drawing"
 )
@@ -14,92 +9,28 @@ import (
 var Line int64
 
 func FromFile(filename string) *drawing.Dxf {
-    file, err := os.Open(filename)
+    dxf     := drawing.New(filename)
+    reader, file := NewReader(filename)
     defer file.Close()
 
-    if err != nil {
-        log.Fatal("Failed to open file: ", err)
-    }
-
-    scanner := bufio.NewScanner(file)
-    dxf     := drawing.New(filename)
-
     for {
-        switch data := ExtractCodeAndValue(scanner); data[1] {
+        switch data := reader.ConsumeDxfLine(); data.Line {
         case "SECTION":
-            switch section := ExtractCodeAndValue(scanner); section[1] {
+            switch section := reader.ConsumeDxfLine(); section.Line {
             case "HEADER":
-                ParseHeader(scanner, dxf)
+                ParseHeader(reader, dxf)
             case "BLOCKS":
-                ParseBlocks(scanner, dxf) 
+                ParseBlocks(reader, dxf) 
             case "ENTITIES":
-                ParseEntities(scanner, dxf)
+                ParseEntities(reader, dxf)
             default:
                 log.Println("WARNING: section not implemented: ", section)
-                SkipToNextLabel(scanner, "ENDSEC")
+                reader.SkipToLabel("ENDSEC")
             }
         case "EOF":
             return dxf
         default:
-            log.Fatal(data)
+            log.Fatal("HERE", data.Line,"HERE")
         }
-    }
-}
-
-func SkipToNextLabel(sc *bufio.Scanner, label string) {
-    for sc.Scan() && sc.Text() != label {
-        Line++
-    }
-}
-
-func ExtractCodeAndValue(sc *bufio.Scanner) [2]string {
-    data := [2]string{}
-
-    for line := 0; line < 2 && sc.Scan(); line++ {
-        data[line] = sc.Text()
-        Line++
-    }
-
-    return data
-}
-
-func ExtractCoordinates3D(sc *bufio.Scanner) [3]float64 {
-    coords := [3]float64{0.0, 0.0, 0.0}
-    extractCoordinates(sc, coords[:], len(coords))
-    return coords
-}
-
-func ExtractHex(sc *bufio.Scanner, code string, description string) uint64 {
-    value := ExtractCodeAndValue(sc)
-
-    if code != strings.TrimSpace(value[0]) {
-        log.Fatal("[TO_HEX] failed: with invalid group code expected ", code, " got ", value)
-    }
-
-    val, err := strconv.ParseUint(strings.TrimSpace(value[1]), 16, 64)
-
-    if err != nil {
-        log.Fatal("[TO_HEX] failed: should be", description, " got (", value, ")")
-    }
-
-    return val
-}
-
-func ExtractCoordinates2D(sc *bufio.Scanner) [2]float64 {
-    coords := [2]float64{0.0, 0.0}
-    extractCoordinates(sc, coords[:], len(coords))
-    return coords
-}
-
-func extractCoordinates(sc *bufio.Scanner, coords []float64, len int) {
-    for i := 0; i < len; i++ {
-        coord := ExtractCodeAndValue(sc)
-        axis, aerr := strconv.Atoi(strings.TrimSpace(coord[0]))
-        val,  verr := strconv.ParseFloat(coord[1], 64)
-
-        if aerr != nil { panic(aerr) }
-        if verr != nil { panic(verr) }
-
-        coords[axis / 10 - 1] = val
     }
 }
