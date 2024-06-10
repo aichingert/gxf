@@ -37,8 +37,8 @@ func parseAcDbEntityE(r *Reader, entity entity.Entity) {
 
 func extractHandleAndOwner(r *Reader) [2]uint64 {
     return [2]uint64{
-        r.ConsumeHex(5, "handle"),
-        r.ConsumeHex(330, "owner ptr"),
+        r.ConsumeNumber(5, 16, "handle"),
+        r.ConsumeNumber(330, 16, "owner ptr"),
     }
 }
 
@@ -71,20 +71,26 @@ func ParsePolyline(r *Reader, dxf *drawing.Dxf) {
         log.Fatal("[ENTITIES(", Line, ")] Expected AcDbPolyline got ", check)
     }
 
-    polyline.Vertices = r.ConsumeHex(90, "number of vertices")
-    polyline.Flag = r.ConsumeHex(70, "polyline flag")
+    polyline.Vertices = r.ConsumeNumber(90, 10, "number of vertices")
+    polyline.Flag = r.ConsumeNumber(70, 10, "polyline flag")
 
-    // expecting code 43
+    // expecting code 43 
     if r.ConsumeDxfLine().Code != 43 {
         log.Fatal("[ENTITIES] TODO: implement line width for each vertex")
     }
 
     for i := uint64(0); i < polyline.Vertices; i++ {
-        _ = r.ConsumeCoordinates2D()
-
-        // polyline.Coordinates = append(polyline.Coordinates, line)
-
         // TODO: sometimes there is a bulge value for a vertex
+        coords := r.ConsumeCoordinates2D()
+
+        // bulge = groupcode 42
+        if r.PeekCode() == 42 {
+            bulge := ParseFloat(r.ConsumeDxfLine().Line)
+            polyline.PolylineAppendCoordinate(coords, bulge)
+            continue
+        }
+
+        polyline.PolylineAppendCoordinate(coords, 0.0)
     }
 
     dxf.Polylines = append(dxf.Polylines, polyline)

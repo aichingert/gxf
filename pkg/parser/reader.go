@@ -13,6 +13,11 @@ type Reader struct {
     reader  *bufio.Reader
 }
 
+type DxfLine struct {
+    Code    uint16
+    Line    string
+}
+
 func NewReader(filename string) (*Reader, *os.File) {
     file, err := os.Open(filename)
 
@@ -29,9 +34,22 @@ func (r *Reader) SkipToLabel(label string) {
     for r.ConsumeDxfLine().Line != label {}
 }
 
-type DxfLine struct {
-    Code    uint16
-    Line    string
+const dxfCodeBytes = 4
+
+func (r *Reader) PeekCode() uint16 {
+    line, err := r.reader.Peek(dxfCodeBytes)
+
+    if err != nil {
+        log.Fatal("[READER] unexpected eof ", err)
+    }
+
+    code, err := strconv.ParseUint(strings.TrimSpace(string(line)), 10, 16)
+
+    if err != nil {
+        log.Fatal("[READER] unable to convert code to int ", err)
+    }
+
+    return uint16(code)
 }
 
 func (r *Reader) consumeCode() uint16 {
@@ -72,20 +90,20 @@ func (r *Reader) ConsumeDxfLine() DxfLine {
     }
 }
 
-func (r *Reader) ConsumeHex(code uint16, description string) uint64 {
+func (r *Reader) ConsumeNumber(code uint16, radix int, description string) uint64 {
     line := r.ConsumeDxfLine()
 
     if line.Code != code {
         log.Fatal("[TO_HEX] failed: with invalid group code expected ", code, " got ", line)
     }
 
-    hex, err := strconv.ParseUint(strings.TrimSpace(line.Line), 16, 64)
+    val, err := strconv.ParseUint(strings.TrimSpace(line.Line), radix, 64)
 
     if err != nil {
         log.Fatal("[TO_HEX] failed: should be", description, " got (", line, ")")
     }
 
-    return hex
+    return val
 }
 
 func (r *Reader) ConsumeCoordinates3D() [3]float64 {
@@ -100,7 +118,7 @@ func (r *Reader) ConsumeCoordinates2D() [2]float64 {
     return coords
 }
 
-func parseFloat(value string) float64 {
+func ParseFloat(value string) float64 {
     val, err := strconv.ParseFloat(value, 64)
 
     if err != nil { 
@@ -115,15 +133,15 @@ func (r *Reader) consumeCoordinates(coords []float64, len int) {
         switch coord := r.ConsumeDxfLine(); coord.Code {
         case 10: fallthrough
         case 11:
-            coords[0] = parseFloat(coord.Line)
+            coords[0] = ParseFloat(coord.Line)
         case 20: fallthrough
         case 21:
-            coords[1] = parseFloat(coord.Line)
+            coords[1] = ParseFloat(coord.Line)
         case 30: fallthrough
         case 31:
-            coords[2] = parseFloat(coord.Line)
+            coords[2] = ParseFloat(coord.Line)
         default:
-            log.Fatal("[READER] extract coordinates invalid index: ", coord)
+            log.Fatal("[READER(",Line,")] extract coordinates invalid index: ", coord)
         }
     }
 }

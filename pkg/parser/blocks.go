@@ -24,8 +24,8 @@ func ParseBlocks(r *Reader, dxf *drawing.Dxf) {
 func parseBlock(r *Reader, dxf *drawing.Dxf) {
     block := new (blocks.Block) 
 
-    block.Handle = r.ConsumeHex(5, "handle")
-    block.Owner = r.ConsumeHex(330, "owner")
+    block.Handle = r.ConsumeNumber(5, 16, "handle")
+    block.Owner = r.ConsumeNumber(330, 16, "owner")
 
     for parseSubClass(r, block) {}
 
@@ -93,9 +93,9 @@ func parseAcDbBlockBegin(r *Reader, block *blocks.Block) {
 }
 
 func parseEndblk(r *Reader, block *blocks.Block) {
-    block.EndHandle = r.ConsumeHex(5, "end handle")
+    block.EndHandle = r.ConsumeNumber(5, 16, "end handle")
 
-    if block.Owner != r.ConsumeHex(330, "end owner") {
+    if block.Owner != r.ConsumeNumber(330, 16, "end owner") {
         log.Fatal("[BLOCK] Invalid assumption different end owners")
     }
 }
