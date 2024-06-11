@@ -14,6 +14,12 @@ func ParseEntities(r *Reader, dxf *drawing.Dxf) {
             ParseLine(r, dxf)
         case "LWPOLYLINE":
             ParsePolyline(r, dxf)
+        case "ARC":
+            ParseArc(r, dxf)
+        case "CIRCLE":
+            ParseCircle(r, dxf)
+        case "MTEXT":
+            ParseMText(r, dxf)
         default:
             log.Fatal("[ENTITIES] ", Line, ": ", variable)
         }
@@ -36,10 +42,18 @@ func parseAcDbEntityE(r *Reader, entity entity.Entity) {
 }
 
 func extractHandleAndOwner(r *Reader) [2]uint64 {
-    return [2]uint64{
-        r.ConsumeNumber(5, 16, "handle"),
-        r.ConsumeNumber(330, 16, "owner ptr"),
+    handle  := r.ConsumeNumber(5, 16, "handle")
+
+    // TODO: set hard owner/handle to owner dictionary
+    if r.PeekCode() == 102 {
+        _ = r.ConsumeDxfLine()
+        _ = r.ConsumeDxfLine()
+        _ = r.ConsumeDxfLine()
     }
+
+    owner   := r.ConsumeNumber(330, 16, "owner ptr")
+
+    return [2]uint64{handle, owner}
 }
 
 func ParseLine(r *Reader, dxf *drawing.Dxf) {
@@ -94,4 +108,87 @@ func ParsePolyline(r *Reader, dxf *drawing.Dxf) {
     }
 
     dxf.Polylines = append(dxf.Polylines, polyline)
+}
+
+func ParseArc(r *Reader, dxf *drawing.Dxf) {
+    result  := extractHandleAndOwner(r)
+    arc     := entity.NewArc(result[0], result[1])
+
+    parseAcDbEntityE(r, arc)
+    check := r.ConsumeDxfLine()
+
+    if check.Line != "AcDbCircle" {
+        log.Fatal("[ENTITIES(", Line, ")] Expected AcDbCircle got ", check)
+    }
+
+    arc.Circle = &entity.Circle {
+        Coordinates:    r.ConsumeCoordinates3D(),
+        Radius:         ParseFloat(r.ConsumeDxfLine().Line),
+    }
+
+    check = r.ConsumeDxfLine()
+
+    if check.Line != "AcDbArc" {
+        log.Fatal("[ENTITIES(", Line, ")] Expected AcDbArc got ", check)
+    }
+
+    arc.StartAngle  = ParseFloat(r.ConsumeDxfLine().Line)
+    arc.EndAngle    = ParseFloat(r.ConsumeDxfLine().Line)
+
+    dxf.Arcs = append(dxf.Arcs, arc)
+}
+
+func ParseCircle(r *Reader, dxf *drawing.Dxf) {
+    result := extractHandleAndOwner(r)
+    circle := entity.NewCircle(result[0], result[1])
+
+    parseAcDbEntityE(r, circle)
+    check := r.ConsumeDxfLine()
+
+    if check.Line != "AcDbCircle" {
+        log.Fatal("[ENTITIES(", Line, ")] Expected AcDbCircle got ", check)
+    }
+
+    circle.Coordinates = r.ConsumeCoordinates3D()
+    circle.Radius      = ParseFloat(r.ConsumeDxfLine().Line)
+
+    dxf.Circles = append(dxf.Circles, circle)
+}
+
+func ParseMText(r *Reader, dxf *drawing.Dxf) {
+    result  := extractHandleAndOwner(r)
+    mText   := entity.NewMText(result[0], result[1])
+
+    parseAcDbEntityE(r, mText)
+    check := r.ConsumeDxfLine()
+
+    if check.Line != "AcDbMText" {
+        log.Fatal("[ENTITIES(", Line, ")] Expected AcDbMText got ", check)
+    }
+
+    mText.Coordinates   = r.ConsumeCoordinates3D()
+    mText.TextHeight    = ParseFloat(r.ConsumeDxfLine().Line)
+    _                   = ParseFloat(r.ConsumeDxfLine().Line)
+
+    // TODO: https://ezdxf.readthedocs.io/en/stable/dxfinternals/entities/mtext.html
+    _                   = ParseFloat(r.ConsumeDxfLine().Line)
+
+    mText.Layout        = uint8(r.ConsumeNumber(71, 10, "attachment point"))
+    mText.Direction     = uint8(r.ConsumeNumber(72, 10, "direction (ex: left to right)"))
+
+    for code := r.PeekCode(); code == 1 || code == 3; code = r.PeekCode() {
+        mText.Text          = append(mText.Text, r.ConsumeDxfLine().Line)
+    }
+
+    mText.TextStyle     = r.ConsumeDxfLine().Line
+    mText.Vector        = r.ConsumeCoordinates3D()
+    mText.LineSpacing   = uint8(r.ConsumeNumber(73, 10, "line spacing"))
+    // [44] LineSpacingFactor
+    _                   = r.ConsumeDxfLine()
+
+    // 691748
+
+
+    dxf.MTexts = append(dxf.MTexts, mText)
+
 }

@@ -57,13 +57,13 @@ func (r *Reader) consumeCode() uint16 {
     Line++
 
     if err != nil {
-        log.Fatal("[READER] Corrupt Dxf file: ", err)
+        log.Fatal("[READER(",Line,")] Corrupt Dxf file: ", err)
     }
 
     code, err := strconv.ParseUint(strings.TrimSpace(string(line)), 10, 16)
 
     if err != nil {
-        log.Fatal("[READER] Corrupt Dxf file: expected code got: ", err)
+        log.Fatal("[READER(",Line,")] Corrupt Dxf file: expected code got: ", err)
     }
 
     return uint16(code)
@@ -94,13 +94,13 @@ func (r *Reader) ConsumeNumber(code uint16, radix int, description string) uint6
     line := r.ConsumeDxfLine()
 
     if line.Code != code {
-        log.Fatal("[TO_HEX] failed: with invalid group code expected ", code, " got ", line)
+        log.Fatal("[TO_NUMBER(", Line, ")] failed: with invalid group code expected ", code, " got ", line)
     }
 
     val, err := strconv.ParseUint(strings.TrimSpace(line.Line), radix, 64)
 
     if err != nil {
-        log.Fatal("[TO_HEX] failed: should be", description, " got (", line, ")")
+        log.Fatal("[TO_NUMBER(", Line, ")] failed: should be ", description, " got (", line, ")")
     }
 
     return val
@@ -118,6 +118,7 @@ func (r *Reader) ConsumeCoordinates2D() [2]float64 {
     return coords
 }
 
+// TODO: take DxfLine to check for code and add description like ParseNumber
 func ParseFloat(value string) float64 {
     val, err := strconv.ParseFloat(value, 64)
 
