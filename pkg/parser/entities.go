@@ -18,8 +18,18 @@ func ParseEntities(r *Reader, dxf *drawing.Dxf) {
             ParseArc(r, dxf)
         case "CIRCLE":
             ParseCircle(r, dxf)
+        case "TEXT":
+            ParseText(r, dxf)
         case "MTEXT":
             ParseMText(r, dxf)
+        case "HATCH":
+            ParseHatch(r, dxf)
+        case "ELLIPSE":
+            ParseEllipse(r, dxf)
+        case "POINT":
+            ParsePoint(r, dxf)
+        case "INSERT":
+            ParseInsert(r, dxf)
         default:
             log.Fatal("[ENTITIES] ", Line, ": ", variable)
         }
@@ -155,6 +165,80 @@ func ParseCircle(r *Reader, dxf *drawing.Dxf) {
     dxf.Circles = append(dxf.Circles, circle)
 }
 
+func ParseText(r *Reader, dxf *drawing.Dxf) {
+    result  := extractHandleAndOwner(r)
+    text    := entity.NewMText(result[0], result[1])
+
+    parseAcDbEntityE(r, text)
+    check := r.ConsumeDxfLine()
+
+    if check.Line != "AcDbText" {
+        log.Fatal("[ENTITIES(", Line, ")] Expected AcDbText got ", check)
+    }
+
+    if r.PeekCode() == 39 {
+        // thickness
+        _ = ParseFloat(r.ConsumeDxfLine().Line)
+    }
+
+    // first alignment point
+    _ = r.ConsumeCoordinates3D()
+    _ = ParseFloat(r.ConsumeDxfLine().Line) // [40] text height
+
+    _ = r.ConsumeDxfLine() // [1] default value the string itself
+
+    if r.PeekCode() == 50 {
+        _ = r.ConsumeDxfLine() // text rotation default 0
+    }
+    if r.PeekCode() == 41 {
+        _ = r.ConsumeDxfLine() // relative x scale factor default 1
+    }
+
+    if r.PeekCode() == 51 {
+        _ = r.ConsumeDxfLine() // oblique angle default 0
+    }
+
+    if r.PeekCode() == 7 {
+        _ = r.ConsumeDxfLine() // text style name default STANDARD
+    }
+
+    if r.PeekCode() == 71 {
+        _ = r.ConsumeDxfLine() // text generation flags default 0
+    }
+
+    if r.PeekCode() == 72 {
+        _ = r.ConsumeDxfLine() // horizontal text justification default 0
+    }
+    
+    if r.PeekCode() == 11 {
+        // second alignment point
+        _ = r.ConsumeCoordinates3D()
+    }
+
+    // optional default = 0, 0, 1
+    if r.PeekCode() == 210 {
+        // XYZ extrusion direction
+        _ = ParseFloat(r.ConsumeDxfLine().Line)
+        _ = ParseFloat(r.ConsumeDxfLine().Line)
+        _ = ParseFloat(r.ConsumeDxfLine().Line)
+    }
+
+    check = r.ConsumeDxfLine()
+
+    if check.Line != "AcDbText" {
+        log.Fatal("[ENTITIES(", Line, ")] Expected AcDbText got ", check)
+    }
+
+    // Group 72 and 73 integer codes 
+    // https://help.autodesk.com/view/OARX/2024/ENU/?guid=GUID-62E5383D-8A14-47B4-BFC4-35824CAE8363
+
+    if r.PeekCode() == 73 {
+        _ = r.ConsumeDxfLine() // Vertical text justification type default 0
+    }
+
+    _ = dxf
+}
+
 func ParseMText(r *Reader, dxf *drawing.Dxf) {
     result  := extractHandleAndOwner(r)
     mText   := entity.NewMText(result[0], result[1])
@@ -183,12 +267,242 @@ func ParseMText(r *Reader, dxf *drawing.Dxf) {
     mText.TextStyle     = r.ConsumeDxfLine().Line
     mText.Vector        = r.ConsumeCoordinates3D()
     mText.LineSpacing   = uint8(r.ConsumeNumber(73, 10, "line spacing"))
+
     // [44] LineSpacingFactor
     _                   = r.ConsumeDxfLine()
 
-    // 691748
-
-
     dxf.MTexts = append(dxf.MTexts, mText)
+}
 
+func ParseHatch(r *Reader, dxf *drawing.Dxf) {
+    result  := extractHandleAndOwner(r)
+    hatch   := entity.NewMText(result[0], result[1])
+
+    parseAcDbEntityE(r, hatch)
+    check := r.ConsumeDxfLine()
+
+    if check.Line != "AcDbHatch" {
+        log.Fatal("[ENTITIES(", Line, ")] Expected AcDbHatch got ", check)
+    }
+
+    // 10,20,30
+    _ = r.ConsumeCoordinates3D()
+
+    // TODO: [210/220/230] Extrustion direction (only need 2D maybe later)
+    _ = r.ConsumeDxfLine()
+    _ = r.ConsumeDxfLine()
+    _ = r.ConsumeDxfLine()
+
+    patternName := r.ConsumeDxfLine()
+    solidFillFlag := r.ConsumeNumber(70, 10, "solid fill flag")
+    associativityFlag := r.ConsumeNumber(71, 10, "associativity flag")
+
+    // Number of boundary paths?
+    _ = r.ConsumeNumber(91, 10, "boundary paths")
+    pt := r.ConsumeNumber(92, 10, "boundary path type")
+
+    if pt & 2 > 0 {
+        b := r.ConsumeNumber(72, 10, "has bulge flag")
+        _ = r.ConsumeNumber(73, 10, "is closed flag")
+        n := r.ConsumeNumber(93, 10, "number fo polyline vertices")
+
+        for i := uint64(0); i < n; i++ {
+            _ = r.ConsumeCoordinates2D()
+            if r.PeekCode() == 42 {
+                _ = ParseFloat(r.ConsumeDxfLine().Line) // bulge
+            }
+        }
+
+        _ = b
+    } else {
+        n := r.ConsumeNumber(93, 10, "number of edges in this boundary path")
+        t := r.ConsumeNumber(72, 10, "edge type data")
+
+        switch t {
+        case 1:
+            // Parse Line
+            for i := uint64(0); i < n; i++ {
+                _ = r.ConsumeCoordinates2D()
+            }
+        case 2:
+            // Circular arc
+            for i := uint64(0); i < n; i++ {
+                _ = r.ConsumeCoordinates2D() 
+            }
+
+            _ = r.ConsumeNumber(40, 10, "radius")
+            _ = r.ConsumeNumber(50, 10, "start angle")
+            _ = r.ConsumeNumber(51, 10, "end angle")
+            _ = r.ConsumeNumber(73, 10, "is counterclockwise flag")
+        case 3:
+            // Elliptic arc
+            for i := uint64(0); i < n; i++ { _ = r.ConsumeCoordinates2D() }
+
+            _ = r.ConsumeNumber(40, 10, "length of minor axis")
+            _ = r.ConsumeNumber(50, 10, "start angle")
+            _ = r.ConsumeNumber(51, 10, "end angle")
+            _ = r.ConsumeNumber(73, 10, "is counterclockwise flag")
+        case 4:
+            // Spine
+            _ = r.ConsumeNumber(94, 10, "degree")
+            _ = r.ConsumeNumber(73, 10, "rational")
+            _ = r.ConsumeNumber(74, 10, "periodic")
+            k := r.ConsumeNumber(95, 10, "number of knots")
+            _ = r.ConsumeNumber(96, 10, "number of control points")
+
+            for i := uint64(0); i < k; i++ {
+                _ = r.ConsumeNumber(40, 10, "knot values")
+                _ = r.ConsumeCoordinates2D()
+            }
+
+            if r.PeekCode() == 42 {
+                _ = r.ConsumeNumber(42, 10, "weights") // optional 1
+            }
+
+            _ = r.ConsumeNumber(97, 10, "number of fit data")
+            _ = r.ConsumeNumber(11, 10, "X fit datum value")
+            _ = r.ConsumeNumber(21, 10, "Y fit datum value")
+            _ = r.ConsumeNumber(12, 10, "X start tangent")
+            _ = r.ConsumeNumber(22, 10, "Y start tangent")
+            _ = r.ConsumeNumber(13, 10, "X end tangent")
+            _ = r.ConsumeNumber(23, 10, "Y end tangent")
+        default:
+            log.Fatal("[ENTITIES(HATCH - ", Line, " )] invalid edge type data: ", t)
+        }
+    }
+
+    bo := r.ConsumeNumber(97, 10, "number of source boundary objects")
+
+    for i := uint64(0); i < bo; i++ {
+        _ = r.ConsumeNumber(330, 10, "reference to source boundary objects")
+    }
+
+    _ = r.ConsumeNumber(75, 10, "hatch style")
+    _ = r.ConsumeNumber(76, 10, "hatch pattern type")
+
+    sp := r.ConsumeNumber(98, 10, "number of seed points")
+
+    if sp != 0 {
+        log.Fatal("TODO(", Line, "): hatch implement seed points")
+    }
+
+    _ = patternName
+    _ = solidFillFlag
+    _ = associativityFlag
+    _ = dxf
+}
+
+func ParseEllipse(r *Reader, dxf *drawing.Dxf) {
+    result  := extractHandleAndOwner(r)
+    ellipse := entity.NewMText(result[0], result[1]) // todo ellipse
+
+    parseAcDbEntityE(r, ellipse)
+    check := r.ConsumeDxfLine()
+
+    if check.Line != "AcDbEllipse" {
+        log.Fatal("[ENTITIES(", Line, ")] Expected AcDbEllipse got ", check)
+    }
+
+    _ = r.ConsumeCoordinates3D() // Center point
+    _ = r.ConsumeCoordinates3D() // endpoint of major axis
+
+    // optional default = 0, 0, 1
+    if r.PeekCode() == 210 {
+        // XYZ extrusion direction
+        _ = ParseFloat(r.ConsumeDxfLine().Line)
+        _ = ParseFloat(r.ConsumeDxfLine().Line)
+        _ = ParseFloat(r.ConsumeDxfLine().Line)
+    }
+
+    _ = ParseFloat(r.ConsumeDxfLine().Line) // 40, 10, "ratio of minor axis to major axis"
+    _ = ParseFloat(r.ConsumeDxfLine().Line) // 41, 10, "start parameter"
+    _ = ParseFloat(r.ConsumeDxfLine().Line) // 42, 10, "end parameter"
+
+    _ = dxf
+}
+
+func ParsePoint(r *Reader, dxf *drawing.Dxf) {
+    result  := extractHandleAndOwner(r)
+    point   := entity.NewMText(result[0], result[1]) // TODO: point
+
+    parseAcDbEntityE(r, point)
+    check := r.ConsumeDxfLine()
+
+    if check.Line != "AcDbPoint" {
+        log.Fatal("[ENTITIES(", Line, ")] Expected AcDbPoint got ", check)
+    }
+
+    _ = r.ConsumeCoordinates3D() // Point location
+    if r.PeekCode() == 39 {
+        _ = r.ConsumeNumber(39, 10, "thickness")
+    }
+
+    // optional default = 0, 0, 1
+    if r.PeekCode() == 210 {
+        // XYZ extrusion direction
+        _ = ParseFloat(r.ConsumeDxfLine().Line)
+        _ = ParseFloat(r.ConsumeDxfLine().Line)
+        _ = ParseFloat(r.ConsumeDxfLine().Line)
+    }
+
+    if r.PeekCode() == 50 {
+        _ = ParseFloat(r.ConsumeDxfLine().Line) // angle of the x axis
+    }
+   
+    _ = dxf
+}
+
+// TODO: have to implement block section first
+func ParseInsert(r *Reader, dxf *drawing.Dxf) {
+    result  := extractHandleAndOwner(r)
+    insert  := entity.NewMText(result[0], result[1]) // TODO: insert
+
+    // 987176
+    parseAcDbEntityE(r, insert)
+    check := r.ConsumeDxfLine()
+
+    if check.Line != "AcDbBlockReference" {
+        log.Fatal("[ENTITIES(", Line, ")] Expected AcDbBlockReference got ", check)
+    }
+
+    if r.PeekCode() == 66 {
+        _ = r.ConsumeDxfLine() // Variable attributes-follow flag default = 0
+    }
+
+    _ = r.ConsumeDxfLine() // Block name
+    _ = r.ConsumeCoordinates3D() // insertion point
+
+    if r.PeekCode() == 41 {
+        _ = r.ConsumeDxfLine() // xyz scale factors default 1
+        _ = r.ConsumeDxfLine() // xyz scale factors default 1
+        _ = r.ConsumeDxfLine() // xyz scale factors default 1
+    }
+
+    if r.PeekCode() == 50 {
+        _ = r.ConsumeDxfLine() // rotation angle default = 0
+    }
+
+    if r.PeekCode() == 70 {
+        _ = r.ConsumeDxfLine() // column count default = 1
+    }
+    if r.PeekCode() == 71 {
+        _ = r.ConsumeDxfLine() // row count default = 1
+    }
+
+    if r.PeekCode() == 44 {
+        _ = r.ConsumeDxfLine() // column spacing default = 0
+    }
+    if r.PeekCode() == 45 {
+        _ = r.ConsumeDxfLine() // row spacing default = 0
+    }
+
+    // optional default = 0, 0, 1
+    if r.PeekCode() == 210 {
+        // XYZ extrusion direction
+        _ = ParseFloat(r.ConsumeDxfLine().Line)
+        _ = ParseFloat(r.ConsumeDxfLine().Line)
+        _ = ParseFloat(r.ConsumeDxfLine().Line)
+    }
+
+    _ = dxf
 }
