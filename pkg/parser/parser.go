@@ -8,29 +8,40 @@ import (
 
 var Line int64
 
-func FromFile(filename string) *drawing.Dxf {
+func FromFile(filename string) (*drawing.Dxf, error) {
     dxf     := drawing.New(filename)
-    reader, file := NewReader(filename)
+    reader, file, err := NewReader(filename)
+
+    if err != nil { return nil, err }
     defer file.Close()
 
     for {
-        switch data := reader.ConsumeDxfLine(); data.Line {
+        data, err := reader.ConsumeDxfLine()
+        if err != nil { return dxf, err }
+
+        switch data.Line {
         case "SECTION":
-            switch section := reader.ConsumeDxfLine(); section.Line {
+            section, err := reader.ConsumeDxfLine()
+            if err != nil { return dxf, err }
+
+            switch section.Line {
             case "HEADER":
-                ParseHeader(reader, dxf)
+                err = ParseHeader(reader, dxf)
+                if err != nil { return dxf, err }
             case "BLOCKS":
-                ParseBlocks(reader, dxf) 
+                err = ParseBlocks(reader, dxf) 
+                if err != nil { return dxf, err }
             case "ENTITIES":
-                ParseEntities(reader, dxf)
+                err = ParseEntities(reader, dxf)
+                if err != nil { return dxf, err }
             default:
                 log.Println("WARNING: section not implemented: ", section)
                 reader.SkipToLabel("ENDSEC")
             }
         case "EOF":
-            return dxf
+            return dxf, nil
         default:
-            log.Fatal("HERE", data.Line,"HERE")
+            return nil, NewParseError("unexpected")
         }
     }
 }

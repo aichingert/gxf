@@ -5,6 +5,6 @@ import (
     "github.com/aichingert/dxf/pkg/drawing"
 )
 
-func Open(filename string) *drawing.Dxf {
+func Open(filename string) (*drawing.Dxf, error) {
     return parser.FromFile(filename)
 }

@@ -7,33 +7,45 @@ import (
     "github.com/aichingert/dxf/pkg/drawing"
 )
 
-func ParseBlocks(r *Reader, dxf *drawing.Dxf) {
+func ParseBlocks(r *Reader, dxf *drawing.Dxf) error {
     for {
-        switch variable := r.ConsumeDxfLine(); variable.Line {
-        case "BLOCK":
-            parseBlock(r, dxf)
-        case "ENDSEC":
-            return
-        default:
-            log.Println("[BLOCK] Warning not implemented: ", variable)
+        line, err := r.ConsumeDxfLine()
+
+        if err != nil {
+            return err
         }
 
+        switch line.Line {
+        case "BLOCK":
+            if err = parseBlock(r, dxf); err != nil { return err }
+        case "ENDSEC":
+            return nil
+        default:
+            log.Println("[BLOCK] Warning not implemented: ", line)
+        }
     }
 }
 
-func parseBlock(r *Reader, dxf *drawing.Dxf) {
+func parseBlock(r *Reader, dxf *drawing.Dxf) error {
     block := new (blocks.Block) 
 
-    block.Handle = r.ConsumeNumber(5, 16, "handle")
-    block.Owner = r.ConsumeNumber(330, 16, "owner")
+    handle, err := r.ConsumeNumber(5, 16, "handle")
+    if err != nil { return err }
+    owner,  err := r.ConsumeNumber(330, 16, "owner")
+    if err != nil { return err }
+
+    block.Handle = handle
+    block.Owner  = owner
 
     for parseSubClass(r, block) {}
 
     dxf.Blocks = append(dxf.Blocks, block)
+    return nil
 }
 
+// TODO: refactor this thing as a whole
 func parseSubClass(r *Reader, block *blocks.Block) bool {
-    switch variable := r.ConsumeDxfLine(); variable.Line {
+    switch variable, _ := r.ConsumeDxfLine(); variable.Line {
     case "AcDbEntity":
         parseAcDbEntity(r, block)
     case "AcDbBlockBegin":
@@ -62,7 +74,7 @@ func parseSubClass(r *Reader, block *blocks.Block) bool {
 }
 
 func parseAcDbEntity(r *Reader, block *blocks.Block) {
-    optional := r.ConsumeDxfLine()
+    optional, _ := r.ConsumeDxfLine()
 
     // TODO: think about paper space visibility
     if optional.Code != 67 {
@@ -71,36 +83,42 @@ func parseAcDbEntity(r *Reader, block *blocks.Block) {
     }
 
     // TODO: could lead to bug with start and end layername - seems like it is always the same
-    layerName := r.ConsumeDxfLine()
+    layerName, _ := r.ConsumeDxfLine()
     block.LayerName = layerName.Line
 }
 
 func parseAcDbBlockBegin(r *Reader, block *blocks.Block) {
-    block.BlockName = r.ConsumeDxfLine().Line
-    block.Flag = r.ConsumeDxfLine().Line
-    block.Coordinates = r.ConsumeCoordinates3D()
+    blockName, _ := r.ConsumeDxfLine()
+    flag, _ := r.ConsumeDxfLine()
+    coordinates, _ := r.ConsumeCoordinates3D()
+
+    block.BlockName = blockName.Line
+    block.Flag = flag.Line
+    block.Coordinates = coordinates
 
     // assumption is that this is the blockName again
-    validate := r.ConsumeDxfLine()
+    validate, _ := r.ConsumeDxfLine()
 
     if block.BlockName != validate.Line {
         log.Fatal("[BLOCK] Invalid assumption different block names")
     }
 
-    block.XrefPath = r.ConsumeDxfLine().Line
+    xrefPath, _ := r.ConsumeDxfLine()
+    block.XrefPath = xrefPath.Line
 
     // TODO: use bufio.Reader to be able to peek at possible description
 }
 
 func parseEndblk(r *Reader, block *blocks.Block) {
-    block.EndHandle = r.ConsumeNumber(5, 16, "end handle")
+    block.EndHandle, _ = r.ConsumeNumber(5, 16, "end handle")
 
-    if block.Owner != r.ConsumeNumber(330, 16, "end owner") {
+    owner, _ := r.ConsumeNumber(330, 16, "end owner") 
+    if block.Owner != owner {
         log.Fatal("[BLOCK] Invalid assumption different end owners")
     }
 }
 
 // TODO: implement it (currently skips to next)
 func parseAttDef(r *Reader, block *blocks.Block) {
-    r.SkipToLabel("ENDBLK")
+    _ = r.SkipToLabel("ENDBLK")
 }

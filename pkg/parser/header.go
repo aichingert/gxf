@@ -6,15 +6,22 @@ import (
     "github.com/aichingert/dxf/pkg/drawing"
 )
 
-func parseCustomProperty(r *Reader, dxf *drawing.Dxf) {
-    tag      := r.ConsumeDxfLine()
-    property := r.ConsumeDxfLine()
+func parseCustomProperty(r *Reader, dxf *drawing.Dxf) error {
+    tag, err := r.ConsumeDxfLine()
+    if err != nil { return err }
+    property, err := r.ConsumeDxfLine()
+    if err != nil { return err }
+
     dxf.Header.CustomProperties[tag.Line] = property.Line
+    return nil
 }
 
-func ParseHeader(r *Reader, dxf *drawing.Dxf) {
+func ParseHeader(r *Reader, dxf *drawing.Dxf) error {
     for {
-        switch variable := r.ConsumeDxfLine(); variable.Line {
+        line, err := r.ConsumeDxfLine()
+        if err != nil { return err }
+
+        switch line.Line {
         case "$ACADVER":            fallthrough
         case "$ACADMAINTVER":       fallthrough
         case "$DWGCODEPAGE":        fallthrough
@@ -46,33 +53,46 @@ func ParseHeader(r *Reader, dxf *drawing.Dxf) {
         case "$DIMLIM":             fallthrough
 
         case "$LASTSAVEDBY":
-            data := r.ConsumeDxfLine()
-            dxf.Header.Variables[variable.Line] = data.Line
+            data, err := r.ConsumeDxfLine()
+            if err != nil { return err }
+            dxf.Header.Variables[line.Line] = data.Line
         case "$ORTHOMODE":          fallthrough
         case "$REGENMODE":          fallthrough
         case "$FILLMODE":           fallthrough
         case "$QTEXTMODE":          fallthrough
         case "$MIRRTEXT":           fallthrough
         case "$ATTMODE":
-            data := r.ConsumeDxfLine()
-            dxf.Header.Modes[variable.Line] = data.Line
+            data, err := r.ConsumeDxfLine()
+            if err != nil { return err }
+            dxf.Header.Modes[line.Line] = data.Line
         case "$CUSTOMPROPERTYTAG":
-            parseCustomProperty(r, dxf)
+            if err := parseCustomProperty(r, dxf); err != nil {
+                return err
+            }
         case "$INSBASE":
-            dxf.Header.InsBase = r.ConsumeCoordinates3D()
+            insBase, err := r.ConsumeCoordinates3D()
+            if err != nil { return err }
+            dxf.Header.InsBase = insBase
         case "$EXTMAX":
-            dxf.Header.ExtMax  = r.ConsumeCoordinates3D()
+            extMax, err := r.ConsumeCoordinates3D()
+            if err != nil { return err }
+            dxf.Header.ExtMax  = extMax
         case "$EXTMIN":
-            dxf.Header.ExtMin  = r.ConsumeCoordinates3D()
+            extMin, err := r.ConsumeCoordinates3D()
+            if err != nil { return err }
+            dxf.Header.ExtMin = extMin
         case "$LIMMIN":
-            log.Println(variable)
-            dxf.Header.LimMin  = r.ConsumeCoordinates2D()
+            limMin, err := r.ConsumeCoordinates2D()
+            if err != nil { return err }
+            dxf.Header.LimMin  = limMin 
         case "$LIMMAX":
-            dxf.Header.LimMax  = r.ConsumeCoordinates2D()
+            limMax, err := r.ConsumeCoordinates2D()
+            if err != nil { return err }
+            dxf.Header.LimMax  = limMax
         case "ENDSEC":
-            return
+            return nil
         default:
-            log.Println("[HEADER] Warning [NOT IMPLEMENTED]: ", variable)
+            log.Println("[HEADER] Warning [NOT IMPLEMENTED]: ", line)
         }
     }
 }
