@@ -26,14 +26,11 @@ func FromFile(filename string) (*drawing.Dxf, error) {
 
             switch section.Line {
             case "HEADER":
-                err = ParseHeader(reader, dxf)
-                if err != nil { return dxf, err }
+                if err = ParseHeader(reader, dxf); err != nil { return dxf, err }
             case "BLOCKS":
-                err = ParseBlocks(reader, dxf) 
-                if err != nil { return dxf, err }
+                if err = ParseBlocks(reader, dxf); err != nil { return dxf, err }
             case "ENTITIES":
-                err = ParseEntities(reader, dxf)
-                if err != nil { return dxf, err }
+                if err = ParseEntities(reader, dxf); err != nil { return dxf, err }
             default:
                 log.Println("WARNING: section not implemented: ", section)
                 reader.SkipToLabel("ENDSEC")

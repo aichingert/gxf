@@ -9,9 +9,9 @@ type Polyline struct {
 }
 
 type line struct {
-    x       float64
-    y       float64
-    bulge   float64
+    X       float64
+    Y       float64
+    Bulge   float64
 }
 
 func NewPolyline(handle uint64, owner uint64) *Polyline {
@@ -29,9 +29,9 @@ func NewPolyline(handle uint64, owner uint64) *Polyline {
 
 func (p *Polyline) PolylineAppendCoordinate(coords2D [2]float64, bulge float64) {
     line := line{
-        x: coords2D[0],
-        y: coords2D[1],
-        bulge: bulge,
+        X: coords2D[0],
+        Y: coords2D[1],
+        Bulge: bulge,
     }
 
     p.Coordinates = append(p.Coordinates, line)

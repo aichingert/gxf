@@ -66,9 +66,7 @@ func ParseHeader(r *Reader, dxf *drawing.Dxf) error {
             if err != nil { return err }
             dxf.Header.Modes[line.Line] = data.Line
         case "$CUSTOMPROPERTYTAG":
-            if err := parseCustomProperty(r, dxf); err != nil {
-                return err
-            }
+            if err := parseCustomProperty(r, dxf); err != nil { return err }
         case "$INSBASE":
             insBase, err := r.ConsumeCoordinates3D()
             if err != nil { return err }

@@ -10,10 +10,7 @@ import (
 func ParseBlocks(r *Reader, dxf *drawing.Dxf) error {
     for {
         line, err := r.ConsumeDxfLine()
-
-        if err != nil {
-            return err
-        }
+        if err != nil { return err }
 
         switch line.Line {
         case "BLOCK":
@@ -52,6 +49,7 @@ func parseSubClass(r *Reader, block *blocks.Block) bool {
         parseAcDbBlockBegin(r, block)
     case "ENDBLK":
         parseEndblk(r, block)
+
 
     // TODO: parse entities
     case "ATTDEF":      fallthrough
@@ -100,7 +98,8 @@ func parseAcDbBlockBegin(r *Reader, block *blocks.Block) {
     validate, _ := r.ConsumeDxfLine()
 
     if block.BlockName != validate.Line {
-        log.Fatal("[BLOCK] Invalid assumption different block names")
+        log.Println(validate)
+        log.Fatal("[BLOCK(", Line, ")] Invalid assumption different block names")
     }
 
     xrefPath, _ := r.ConsumeDxfLine()

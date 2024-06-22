@@ -10,52 +10,29 @@ import (
 func ParseEntities(r *Reader, dxf *drawing.Dxf) error {
     for {
         line, err := r.ConsumeDxfLine()
-
-        if err != nil {
-            return err
-        }
+        if err != nil { return err }
 
         switch line.Line {
         case "LINE":
-            if err = ParseLine(r, dxf); err != nil {
-                return err
-            }
+            if err = ParseLine(r, dxf);     err != nil { return err }
         case "LWPOLYLINE":
-            if err = ParsePolyline(r, dxf); err != nil {
-                return err
-            }
+            if err = ParsePolyline(r, dxf); err != nil { return err }
         case "ARC":
-            if err = ParseArc(r, dxf); err != nil {
-                return err
-            }
+            if err = ParseArc(r, dxf);      err != nil { return err }
         case "CIRCLE":
-            if err = ParseCircle(r, dxf); err != nil {
-                return err
-            }
+            if err = ParseCircle(r, dxf);   err != nil { return err }
         case "TEXT":
-            if err = ParseText(r, dxf); err != nil {
-                return err
-            }
+            if err = ParseText(r, dxf);     err != nil { return err }
         case "MTEXT":
-            if err = ParseMText(r, dxf); err != nil {
-                return err
-            }
+            if err = ParseMText(r, dxf);    err != nil { return err }
         case "HATCH":
-            if err = ParseHatch(r, dxf); err != nil {
-                return err
-            }
+            if err = ParseHatch(r, dxf);    err != nil { return err }
         case "ELLIPSE":
-            if err = ParseEllipse(r, dxf); err != nil {
-                return err
-            }
+            if err = ParseEllipse(r, dxf);  err != nil { return err }
         case "POINT":
-            if err = ParsePoint(r, dxf); err != nil {
-                return err
-            }
+            if err = ParsePoint(r, dxf);    err != nil { return err }
         case "INSERT":
-            if err = ParseInsert(r, dxf); err != nil {
-                return err
-            }
+            if err = ParseInsert(r, dxf);   err != nil { return err }
         default:
             log.Println("[ENTITIES] ", Line, ": ", line)
             return NewParseError("unknown entity")
@@ -172,9 +149,7 @@ func ParsePolyline(r *Reader, dxf *drawing.Dxf) error {
         if err != nil { return err }
 
         if code == 42 {
-            line,  err := r.ConsumeDxfLine()
-            if err != nil { return err }
-            bulge, err = ParseFloat(line.Line)
+            bulge, err = r.ConsumeFloat(42, "expected bulge")
             if err != nil { return err }
         }
 
@@ -202,9 +177,7 @@ func ParseArc(r *Reader, dxf *drawing.Dxf) error {
 
     coords, err := r.ConsumeCoordinates3D()
     if err != nil { return err }
-    line, err := r.ConsumeDxfLine()
-    if err != nil { return err }
-    radius, err := ParseFloat(line.Line)
+    radius, err := r.ConsumeFloat(40, "expected radius")
     if err != nil { return err }
 
     arc.Circle = &entity.Circle {
@@ -220,13 +193,9 @@ func ParseArc(r *Reader, dxf *drawing.Dxf) error {
         return NewParseError("expected AcDbArc")
     }
 
-    line, err = r.ConsumeDxfLine()
+    startAngle, err := r.ConsumeFloat(50, "expected startAngle")
     if err != nil { return err }
-    startAngle, err := ParseFloat(line.Line)
-    if err != nil { return err }
-    line, err = r.ConsumeDxfLine()
-    if err != nil { return err }
-    endAngle, err := ParseFloat(line.Line)
+    endAngle, err := r.ConsumeFloat(51, "expected endAngle")
     if err != nil { return err }
 
     arc.StartAngle  = startAngle
@@ -253,9 +222,7 @@ func ParseCircle(r *Reader, dxf *drawing.Dxf) error {
 
     coords, err := r.ConsumeCoordinates3D()
     if err != nil { return err }
-    line, err := r.ConsumeDxfLine()
-    if err != nil { return err }
-    radius, err := ParseFloat(line.Line)
+    radius, err := r.ConsumeFloat(40, "expected radius")
     if err != nil { return err }
 
     circle.Coordinates = coords
@@ -284,18 +251,15 @@ func ParseText(r *Reader, dxf *drawing.Dxf) error {
     if err != nil { return err }
     if code == 39 {
         // thickness
-        line, err := r.ConsumeDxfLine()
-        if err != nil { return err }
-        _, err = ParseFloat(line.Line)
+        _, err = r.ConsumeFloat(39, "expected thickness")
         if err != nil { return err }
     }
 
     // first alignment point
     _, err = r.ConsumeCoordinates3D()
     if err != nil { return err }
-    line, err := r.ConsumeDxfLine()
-    if err != nil { return err }
-    _, err = ParseFloat(line.Line) // [40] text height
+
+    _, err = r.ConsumeFloat(40, "expected text height")
     if err != nil { return err }
 
     _, err = r.ConsumeDxfLine() // [1] default value the string itself
@@ -355,22 +319,10 @@ func ParseText(r *Reader, dxf *drawing.Dxf) error {
     // optional default = 0, 0, 1
     code, err = r.PeekCode()
     if err != nil { return err }
+
     if code == 210 {
         // XYZ extrusion direction
-        line, err = r.ConsumeDxfLine()
-        if err != nil { return err }
-        _, err = ParseFloat(line.Line)
-        if err != nil { return err }
-
-        line, err = r.ConsumeDxfLine()
-        if err != nil { return err }
-        _, err = ParseFloat(line.Line)
-        if err != nil { return err }
-
-        line, err = r.ConsumeDxfLine()
-        if err != nil { return err }
-        _, err = ParseFloat(line.Line)
-        if err != nil { return err }
+        _, err = r.ConsumeCoordinates3D()
     }
 
     check, err = r.ConsumeDxfLine()
@@ -412,21 +364,16 @@ func ParseMText(r *Reader, dxf *drawing.Dxf) error {
 
     coords, err := r.ConsumeCoordinates3D()
     if err != nil { return err }
-    line, err := r.ConsumeDxfLine()
-    if err != nil { return err }
-    textHeight, err := ParseFloat(line.Line)
-    if err != nil { return err }
-
-    line, err = r.ConsumeDxfLine()
-    if err != nil { return err }
-    _, err = ParseFloat(line.Line)
+    textHeight, err := r.ConsumeFloat(40, "expected text height")
     if err != nil { return err }
 
     // TODO: https://ezdxf.readthedocs.io/en/stable/dxfinternals/entities/mtext.html
-    line, err = r.ConsumeDxfLine()
+    _, err = r.ConsumeFloat(41, "rectangle width")
     if err != nil { return err }
-    _, err = ParseFloat(line.Line)
+
+    _, err = r.ConsumeFloat(46, "column height")
     if err != nil { return err }
+
     layout, err := r.ConsumeNumber(71, 10, "attachment point")
     if err != nil { return err }
     direction, err := r.ConsumeNumber(72, 10, "direction (ex: left to right)")
@@ -442,7 +389,7 @@ func ParseMText(r *Reader, dxf *drawing.Dxf) error {
     if err != nil { return err }
 
     for code == 1 || code == 3 {
-        line, err = r.ConsumeDxfLine()
+        line, err := r.ConsumeDxfLine()
         if err != nil { return err }
         mText.Text          = append(mText.Text, line.Line)
 
@@ -450,7 +397,7 @@ func ParseMText(r *Reader, dxf *drawing.Dxf) error {
         if err != nil { return err }
     }
 
-    line, err = r.ConsumeDxfLine()
+    line, err := r.ConsumeDxfLine()
     if err != nil { return err }
 
     vector, err := r.ConsumeCoordinates3D()
@@ -523,9 +470,7 @@ func ParseHatch(r *Reader, dxf *drawing.Dxf) error {
             code, err := r.PeekCode()
             if err != nil { return err }
             if code == 42 {
-                line, err := r.ConsumeDxfLine()
-                if err != nil { return err }
-                _ ,err = ParseFloat(line.Line) // bulge
+                _ ,err = r.ConsumeFloat(42, "expected bulge")
                 if err != nil { return err }
             }
         }
@@ -673,31 +618,17 @@ func ParseEllipse(r *Reader, dxf *drawing.Dxf) error {
     if err != nil { return err }
     if code == 210 {
         // XYZ extrusion direction
-        line, err := r.ConsumeDxfLine()
-        if err != nil { return err }
-        _, err = ParseFloat(line.Line)
-        if err != nil { return err }
-        line, err = r.ConsumeDxfLine()
-        if err != nil { return err }
-        _, err = ParseFloat(line.Line)
-        if err != nil { return err }
-        line, err = r.ConsumeDxfLine()
-        if err != nil { return err }
-        _, err = ParseFloat(line.Line)
+        _, err = r.ConsumeCoordinates3D()
         if err != nil { return err }
     }
 
-    line, err := r.ConsumeDxfLine()
+    _, err = r.ConsumeFloat(40, "ratio of minor axis to major axis")
     if err != nil { return err }
-    _, err = ParseFloat(line.Line) // 40, 10, "ratio of minor axis to major axis"
+
+    _, err = r.ConsumeFloat(41, "start parameter")
     if err != nil { return err }
-    line, err = r.ConsumeDxfLine()
-    if err != nil { return err }
-    _, err = ParseFloat(line.Line) // 41, 10, "start parameter"
-    if err != nil { return err }
-    line, err = r.ConsumeDxfLine()
-    if err != nil { return err }
-    _, err = ParseFloat(line.Line) // 42, 10, "end parameter"
+
+    _, err = r.ConsumeFloat(42, "end parameter")
     if err != nil { return err }
 
     _ = dxf
@@ -733,26 +664,14 @@ func ParsePoint(r *Reader, dxf *drawing.Dxf) error {
     if err != nil { return err }
     if code == 210 {
         // XYZ extrusion direction
-        line, err := r.ConsumeDxfLine()
-        if err != nil { return err }
-        _, err = ParseFloat(line.Line)
-        if err != nil { return err }
-        line, err = r.ConsumeDxfLine()
-        if err != nil { return err }
-        _, err = ParseFloat(line.Line)
-        if err != nil { return err }
-        line, err = r.ConsumeDxfLine()
-        if err != nil { return err }
-        _, err = ParseFloat(line.Line)
+        _, err = r.ConsumeCoordinates3D()
         if err != nil { return err }
     }
 
     code, err = r.PeekCode()
     if err != nil { return err }
     if code == 50 {
-        line, err := r.ConsumeDxfLine()
-        if err != nil { return err }
-        _, err = ParseFloat(line.Line) // angle of the x axis
+        _, err = r.ConsumeFloat(50, "angle of the x axis")
         if err != nil { return err }
     }
    
@@ -837,17 +756,7 @@ func ParseInsert(r *Reader, dxf *drawing.Dxf) error {
     if err != nil { return err }
     if code == 210 {
         // XYZ extrusion direction
-        line, err := r.ConsumeDxfLine()
-        if err != nil { return err }
-        _, err = ParseFloat(line.Line)
-        if err != nil { return err }
-        line, err = r.ConsumeDxfLine()
-        if err != nil { return err }
-        _, err = ParseFloat(line.Line)
-        if err != nil { return err }
-        line, err = r.ConsumeDxfLine()
-        if err != nil { return err }
-        _, err = ParseFloat(line.Line)
+        _, err = r.ConsumeCoordinates3D()
         if err != nil { return err }
     }
 
