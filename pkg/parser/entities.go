@@ -14,31 +14,36 @@ func ParseEntities(r *Reader, dxf *drawing.Dxf) error {
 
         switch line.Line {
         case "LINE":
-            if err = ParseLine(r, dxf);     err != nil { return err }
+            Wrap(ParseLine, r, dxf);
         case "LWPOLYLINE":
-            if err = ParsePolyline(r, dxf); err != nil { return err }
+            Wrap(ParsePolyline, r, dxf);
         case "ARC":
-            if err = ParseArc(r, dxf);      err != nil { return err }
+            Wrap(ParseArc, r, dxf);
         case "CIRCLE":
-            if err = ParseCircle(r, dxf);   err != nil { return err }
+            Wrap(ParseCircle, r, dxf);
         case "TEXT":
-            if err = ParseText(r, dxf);     err != nil { return err }
+            Wrap(ParseText, r, dxf);
         case "MTEXT":
-            if err = ParseMText(r, dxf);    err != nil { return err }
+            Wrap(ParseMText, r, dxf);
         case "HATCH":
-            if err = ParseHatch(r, dxf);    err != nil { return err }
+            Wrap(ParseHatch, r, dxf);
         case "ELLIPSE":
-            if err = ParseEllipse(r, dxf);  err != nil { return err }
+            Wrap(ParseEllipse, r, dxf);
         case "POINT":
-            if err = ParsePoint(r, dxf);    err != nil { return err }
+            Wrap(ParsePoint, r, dxf);
         case "INSERT":
-            if err = ParseInsert(r, dxf);   err != nil { return err }
+            Wrap(ParseInsert, r, dxf);
         default:
             log.Println("[ENTITIES] ", Line, ": ", line)
             return NewParseError("unknown entity")
         }
+
+        if WrappedErr != nil {
+            return WrappedErr
+        }
     }
 }
+
 
 func parseAcDbEntityE(r *Reader, entity entity.Entity) error {
     _, err := r.ConsumeDxfLine()

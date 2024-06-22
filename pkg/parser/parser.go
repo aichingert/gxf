@@ -6,7 +6,18 @@ import (
     "github.com/aichingert/dxf/pkg/drawing"
 )
 
-var Line int64
+var Line        int64
+var WrappedErr  error
+
+type ParseFunction func(*Reader, *drawing.Dxf) error
+
+func Wrap(fn ParseFunction, r *Reader, dxf *drawing.Dxf) {
+    if WrappedErr != nil {
+        return
+    }
+
+    WrappedErr = fn(r, dxf)
+}
 
 func FromFile(filename string) (*drawing.Dxf, error) {
     dxf     := drawing.New(filename)
@@ -15,30 +26,33 @@ func FromFile(filename string) (*drawing.Dxf, error) {
     if err != nil { return nil, err }
     defer file.Close()
 
-    for {
-        data, err := reader.ConsumeDxfLine()
-        if err != nil { return dxf, err }
-
-        switch data.Line {
+    for reader.ScanDxfLine() {
+        switch reader.DxfLine().Line {
         case "SECTION":
             section, err := reader.ConsumeDxfLine()
             if err != nil { return dxf, err }
 
             switch section.Line {
             case "HEADER":
-                if err = ParseHeader(reader, dxf); err != nil { return dxf, err }
+                Wrap(ParseHeader, reader, dxf)
             case "BLOCKS":
-                if err = ParseBlocks(reader, dxf); err != nil { return dxf, err }
+                Wrap(ParseBlocks, reader, dxf)
             case "ENTITIES":
-                if err = ParseEntities(reader, dxf); err != nil { return dxf, err }
+                Wrap(ParseEntities, reader, dxf)
             default:
                 log.Println("WARNING: section not implemented: ", section)
                 reader.SkipToLabel("ENDSEC")
             }
         case "EOF":
-            return dxf, nil
+            return dxf, reader.Err()
         default:
             return nil, NewParseError("unexpected")
         }
+
+        if WrappedErr != nil {
+            return dxf, WrappedErr
+        }
     }
+
+    return dxf, reader.Err()
 }

@@ -14,11 +14,15 @@ func ParseBlocks(r *Reader, dxf *drawing.Dxf) error {
 
         switch line.Line {
         case "BLOCK":
-            if err = parseBlock(r, dxf); err != nil { return err }
+            Wrap(parseBlock, r, dxf)
         case "ENDSEC":
             return nil
         default:
             log.Println("[BLOCK] Warning not implemented: ", line)
+        }
+
+        if WrappedErr != nil {
+            return WrappedErr
         }
     }
 }
