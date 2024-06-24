@@ -6,8 +6,13 @@ import (
     "github.com/aichingert/dxf/pkg/drawing"
 )
 
-var Line        int64
-var WrappedErr  error
+var (
+    Handle  uint64  = 0
+    Owner   uint64  = 0
+    Line    uint64  = 0
+
+    WrappedErr error
+)
 
 type ParseFunction func(*Reader, *drawing.Dxf) error
 

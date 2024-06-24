@@ -30,13 +30,8 @@ func ParseBlocks(r *Reader, dxf *drawing.Dxf) error {
 func parseBlock(r *Reader, dxf *drawing.Dxf) error {
     block := new (blocks.Block) 
 
-    handle, err := r.ConsumeNumber(5, 16, "handle")
-    if err != nil { return err }
-    owner,  err := r.ConsumeNumber(330, 16, "owner")
-    if err != nil { return err }
-
-    block.Handle = handle
-    block.Owner  = owner
+    r.ConsumeNumber(5, 16, "handle", &block.Handle)
+    r.ConsumeNumber(330, 16, "owner", &block.Owner)
 
     for parseSubClass(r, block) {}
 
@@ -89,36 +84,31 @@ func parseAcDbEntity(r *Reader, block *blocks.Block) {
     block.LayerName = layerName.Line
 }
 
-func parseAcDbBlockBegin(r *Reader, block *blocks.Block) {
-    blockName, _ := r.ConsumeDxfLine()
-    flag, _ := r.ConsumeDxfLine()
-    coordinates, _ := r.ConsumeCoordinates3D()
-
-    block.BlockName = blockName.Line
-    block.Flag = flag.Line
-    block.Coordinates = coordinates
+func parseAcDbBlockBegin(r *Reader, block *blocks.Block) error {
+    r.ConsumeStr(&block.BlockName)
+    r.ConsumeStr(&block.Flag)
+    r.ConsumeCoordinates(block.Coordinates[:])
 
     // assumption is that this is the blockName again
-    validate, _ := r.ConsumeDxfLine()
-
-    if block.BlockName != validate.Line {
-        log.Println(validate)
-        log.Fatal("[BLOCK(", Line, ")] Invalid assumption different block names")
+    if r.AssertNextLine(block.BlockName) != nil {
+        log.Fatal("[BLOCK(", Line, ")] Invalid assumption different block names ", block.BlockName)
     }
 
-    xrefPath, _ := r.ConsumeDxfLine()
-    block.XrefPath = xrefPath.Line
+    r.ConsumeStr(&block.XrefPath)
 
     // TODO: use bufio.Reader to be able to peek at possible description
+    return r.Err()
 }
 
-func parseEndblk(r *Reader, block *blocks.Block) {
-    block.EndHandle, _ = r.ConsumeNumber(5, 16, "end handle")
+func parseEndblk(r *Reader, block *blocks.Block) error {
+    r.ConsumeNumber(5, 16, "end handle", &block.EndHandle)
+    r.ConsumeNumber(330, 16, "end owner", &Owner)
 
-    owner, _ := r.ConsumeNumber(330, 16, "end owner") 
-    if block.Owner != owner {
+    if block.Owner != Owner {
         log.Fatal("[BLOCK] Invalid assumption different end owners")
     }
+
+    return r.Err()
 }
 
 // TODO: implement it (currently skips to next)

@@ -4,7 +4,7 @@ type Entity interface {
     Handle()    uint64
     Owner()     uint64
 
-    SetLayerName(string)
+    GetLayerName() *string
 }
 
 type entity struct {
@@ -22,6 +22,6 @@ func (e *entity) Owner() uint64 {
     return e.owner
 }
 
-func (e *entity) SetLayerName(layerName string) {
-    e.LayerName = layerName
+func (e *entity) GetLayerName() *string {
+    return &e.LayerName
 }

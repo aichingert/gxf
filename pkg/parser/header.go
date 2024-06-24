@@ -17,11 +17,8 @@ func parseCustomProperty(r *Reader, dxf *drawing.Dxf) error {
 }
 
 func ParseHeader(r *Reader, dxf *drawing.Dxf) error {
-    for {
-        line, err := r.ConsumeDxfLine()
-        if err != nil { return err }
-
-        switch line.Line {
+    for r.ScanDxfLine() {
+        switch r.DxfLine().Line {
         case "$ACADVER":            fallthrough
         case "$ACADMAINTVER":       fallthrough
         case "$DWGCODEPAGE":        fallthrough
@@ -51,11 +48,10 @@ func ParseHeader(r *Reader, dxf *drawing.Dxf) error {
         case "$DIMTSZ":             fallthrough
         case "$DIMTOL":             fallthrough
         case "$DIMLIM":             fallthrough
-
         case "$LASTSAVEDBY":
             data, err := r.ConsumeDxfLine()
             if err != nil { return err }
-            dxf.Header.Variables[line.Line] = data.Line
+            dxf.Header.Variables[r.DxfLine().Line] = data.Line
         case "$ORTHOMODE":          fallthrough
         case "$REGENMODE":          fallthrough
         case "$FILLMODE":           fallthrough
@@ -64,33 +60,25 @@ func ParseHeader(r *Reader, dxf *drawing.Dxf) error {
         case "$ATTMODE":
             data, err := r.ConsumeDxfLine()
             if err != nil { return err }
-            dxf.Header.Modes[line.Line] = data.Line
+            dxf.Header.Modes[r.DxfLine().Line] = data.Line
         case "$CUSTOMPROPERTYTAG":
             if err := parseCustomProperty(r, dxf); err != nil { return err }
         case "$INSBASE":
-            insBase, err := r.ConsumeCoordinates3D()
-            if err != nil { return err }
-            dxf.Header.InsBase = insBase
+            r.ConsumeCoordinates(dxf.Header.InsBase[:])
         case "$EXTMAX":
-            extMax, err := r.ConsumeCoordinates3D()
-            if err != nil { return err }
-            dxf.Header.ExtMax  = extMax
+            r.ConsumeCoordinates(dxf.Header.ExtMax[:])
         case "$EXTMIN":
-            extMin, err := r.ConsumeCoordinates3D()
-            if err != nil { return err }
-            dxf.Header.ExtMin = extMin
+            r.ConsumeCoordinates(dxf.Header.ExtMin[:])
         case "$LIMMIN":
-            limMin, err := r.ConsumeCoordinates2D()
-            if err != nil { return err }
-            dxf.Header.LimMin  = limMin 
+            r.ConsumeCoordinates(dxf.Header.LimMin[:])
         case "$LIMMAX":
-            limMax, err := r.ConsumeCoordinates2D()
-            if err != nil { return err }
-            dxf.Header.LimMax  = limMax
+            r.ConsumeCoordinates(dxf.Header.LimMax[:])
         case "ENDSEC":
             return nil
         default:
-            log.Println("[HEADER] Warning [NOT IMPLEMENTED]: ", line)
+            log.Println("[HEADER] Warning [NOT IMPLEMENTED]: ", r.DxfLine().Line)
         }
     }
+
+    return r.Err()
 }

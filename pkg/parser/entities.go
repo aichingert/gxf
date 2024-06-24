@@ -8,11 +8,8 @@ import (
 )
 
 func ParseEntities(r *Reader, dxf *drawing.Dxf) error {
-    for {
-        line, err := r.ConsumeDxfLine()
-        if err != nil { return err }
-
-        switch line.Line {
+    for r.ScanDxfLine() {
+        switch r.DxfLine().Line {
         case "LINE":
             Wrap(ParseLine, r, dxf);
         case "LWPOLYLINE":
@@ -34,7 +31,7 @@ func ParseEntities(r *Reader, dxf *drawing.Dxf) error {
         case "INSERT":
             Wrap(ParseInsert, r, dxf);
         default:
-            log.Println("[ENTITIES] ", Line, ": ", line)
+            log.Println("[ENTITIES] ", Line, ": ", r.DxfLine().Line)
             return NewParseError("unknown entity")
         }
 
@@ -42,99 +39,68 @@ func ParseEntities(r *Reader, dxf *drawing.Dxf) error {
             return WrappedErr
         }
     }
-}
 
+    return r.Err()
+}
 
 func parseAcDbEntityE(r *Reader, entity entity.Entity) error {
-    _, err := r.ConsumeDxfLine()
-    if err != nil { return err }
-    optional, err := r.ConsumeDxfLine()
-    if err != nil { return err }
-
-    // TODO: think about paper space visibility
-    if optional.Code != 67 {
-        entity.SetLayerName(optional.Line)
-        return nil
+    r.ConsumeStr(nil) // AcDbEntity
+    if r.ConsumeStrIf(67, entity.GetLayerName()) {
+        return r.Err()
     }
 
-    // TODO: could lead to bug with start and end layername - seems like it is always the same
-    layerName, err := r.ConsumeDxfLine()
-    if err != nil { return err }
-    entity.SetLayerName(layerName.Line)
-    return nil
+    // TODO: could lead to bug with start and end layername 
+    // * seems like it is always the same
+    r.ConsumeStr(entity.GetLayerName())
+    return r.Err()
 }
 
-func extractHandleAndOwner(r *Reader) (*[2]uint64, error) {
-    handle, err := r.ConsumeNumber(5, 16, "handle")
-    if err != nil { return nil, err }
+func extractHandleAndOwner(r *Reader, handle *uint64, owner *uint64) error {
+    r.ConsumeNumber(5, HEX_RADIX, "handle", handle) 
 
     // TODO: set hard owner/handle to owner dictionary
-    code, err := r.PeekCode()
-    if err != nil { return nil, err }
-    if code == 102 {
-        _, err = r.ConsumeDxfLine()
-        if err != nil { return nil, err }
-        _, err = r.ConsumeDxfLine()
-        if err != nil { return nil, err }
-        _, err = r.ConsumeDxfLine()
-        if err != nil { return nil, err }
+    if r.ConsumeStrIf(102, nil) { // consumeIf => ex. {ACAD_XDICTIONARY
+        r.ConsumeStr(nil) // 360 => hard owner
+        r.ConsumeStr(nil) // 102 }
     }
 
-    owner, err := r.ConsumeNumber(330, 16, "owner ptr")
-    if err != nil { return nil, err }
-    return &[2]uint64{handle, owner}, nil
+    r.ConsumeNumber(330, HEX_RADIX, "owner ptr", owner)
+    return r.Err()
 }
 
+// 656790
+
 func ParseLine(r *Reader, dxf *drawing.Dxf) error {
-    result, err := extractHandleAndOwner(r)
-    if err != nil { return err }
-    line := entity.NewLine(result[0], result[1])
-
-    err = parseAcDbEntityE(r, line)
-    if err != nil { return err }
-
-    check, err := r.ConsumeDxfLine()
-    if err != nil { return err }
-
-    if check.Line != "AcDbLine" {
-        log.Println("[ENTITIES(", Line, ")] Expected AcDbLine got ", check)
-        return NewParseError("expected AcDbLine")
+    if extractHandleAndOwner(r, &Handle, &Owner) != nil {
+        return r.Err()
     }
 
-    src, err := r.ConsumeCoordinates3D()
-    if err != nil { return err }
-    dst, err := r.ConsumeCoordinates3D()
-    if err != nil { return err }
+    line := entity.NewLine(Handle, Owner)
 
-    line.Src = src
-    line.Dst = dst
+    if parseAcDbEntityE(r, line) != nil || r.AssertNextLine("AcDbLine") != nil {
+        return r.Err()
+    }
+
+    r.ConsumeCoordinates(line.Src[:])
+    r.ConsumeCoordinates(line.Dst[:])
 
     dxf.Lines = append(dxf.Lines, line)
-    return nil
+    return r.Err()
 }
 
 func ParsePolyline(r *Reader, dxf *drawing.Dxf) error {
-    result, err := extractHandleAndOwner(r)
-    if err != nil { return err }
-    polyline := entity.NewPolyline(result[0], result[1])
-
-    err = parseAcDbEntityE(r, polyline)
-    if err != nil { return err }
-    check, err := r.ConsumeDxfLine()
-    if err != nil { return err }
-
-    if check.Line != "AcDbPolyline" {
-        log.Println("[ENTITIES(", Line, ")] Expected AcDbPolyline got ", check)
-        return NewParseError("expected AcDbPolyline")
+    if extractHandleAndOwner(r, &Handle, &Owner) != nil {
+        return r.Err()
     }
 
-    vertices, err := r.ConsumeNumber(90, 10, "number of vertices")
-    if err != nil { return err }
-    flag, err := r.ConsumeNumber(70, 10, "polyline flag")
-    if err != nil { return err }
+    polyline := entity.NewPolyline(Handle, Owner)
 
-    polyline.Vertices = vertices
-    polyline.Flag = flag
+    if parseAcDbEntityE(r, polyline) != nil || r.AssertNextLine("AcDbPolyline") != nil {
+        return r.Err()
+    }
+
+    r.ConsumeNumber(90, DEC_RADIX, "number of vertices", &polyline.Vertices)
+    r.ConsumeNumber(70, DEC_RADIX, "polyline flag", &polyline.Flag)
 
     // expecting code 43 
     line, err := r.ConsumeDxfLine()
@@ -145,625 +111,377 @@ func ParsePolyline(r *Reader, dxf *drawing.Dxf) error {
 
     for i := uint64(0); i < polyline.Vertices; i++ {
         // TODO: sometimes there is a bulge value for a vertex
-        coords, err := r.ConsumeCoordinates2D()
-        if err != nil { return err }
         bulge := 0.0
+        coords := [2]float64{0.0,0.0}
 
-        // bulge = groupcode 42
-        code, err := r.PeekCode()
-        if err != nil { return err }
+        r.ConsumeCoordinates(coords[:])
+        r.ConsumeFloatIf(42, "expected, bulge", &bulge)
 
-        if code == 42 {
-            bulge, err = r.ConsumeFloat(42, "expected bulge")
-            if err != nil { return err }
+        if r.Err() != nil {
+            return r.Err()
         }
 
         polyline.PolylineAppendCoordinate(coords, bulge)
     }
 
     dxf.Polylines = append(dxf.Polylines, polyline)
-    return nil
+    return r.Err()
 }
 
 func ParseArc(r *Reader, dxf *drawing.Dxf) error {
-    result, err := extractHandleAndOwner(r)
-    if err != nil { return err }
-    arc     := entity.NewArc(result[0], result[1])
-
-    err = parseAcDbEntityE(r, arc)
-    if err != nil { return err }
-    check, err := r.ConsumeDxfLine()
-    if err != nil { return err }
-
-    if check.Line != "AcDbCircle" {
-        log.Println("[ENTITIES(", Line, ")] Expected AcDbCircle got ", check)
-        return NewParseError("expected AcDbCircle ")
+    if extractHandleAndOwner(r, &Handle, &Owner) != nil {
+        return r.Err()
     }
 
-    coords, err := r.ConsumeCoordinates3D()
-    if err != nil { return err }
-    radius, err := r.ConsumeFloat(40, "expected radius")
-    if err != nil { return err }
+    arc := entity.NewArc(Handle, Owner)
 
-    arc.Circle = &entity.Circle {
-        Coordinates:    coords,
-        Radius:         radius,
+    if parseAcDbEntityE(r, arc) != nil || r.AssertNextLine("AcDbCircle") != nil {
+        return r.Err()
     }
 
-    check, err = r.ConsumeDxfLine()
-    if err != nil { return err }
-
-    if check.Line != "AcDbArc" {
-        log.Println("[ENTITIES(", Line, ")] Expected AcDbArc got ", check)
-        return NewParseError("expected AcDbArc")
+    circle := &entity.Circle {
+        Coordinates:    [3]float64{0.0,0.0,0.0},
+        Radius:         0.0,
     }
 
-    startAngle, err := r.ConsumeFloat(50, "expected startAngle")
-    if err != nil { return err }
-    endAngle, err := r.ConsumeFloat(51, "expected endAngle")
-    if err != nil { return err }
+    r.ConsumeCoordinates(circle.Coordinates[:])
+    r.ConsumeFloat(40, "expected radius", &circle.Radius)
 
-    arc.StartAngle  = startAngle
-    arc.EndAngle    = endAngle
+    arc.Circle = circle
+
+    if r.AssertNextLine("AcDbArc") != nil {
+        return r.Err()
+    }
+
+    r.ConsumeFloat(50, "expected startAngle", &arc.StartAngle)
+    r.ConsumeFloat(51, "expected endAngle", &arc.EndAngle)
 
     dxf.Arcs = append(dxf.Arcs, arc)
-    return nil
+    return r.Err()
 }
 
 func ParseCircle(r *Reader, dxf *drawing.Dxf) error {
-    result, err := extractHandleAndOwner(r)
-    if err != nil { return err }
-    circle := entity.NewCircle(result[0], result[1])
-
-    err = parseAcDbEntityE(r, circle)
-    if err != nil { return err }
-    check, err := r.ConsumeDxfLine()
-    if err != nil { return err }
-
-    if check.Line != "AcDbCircle" {
-        log.Println("[ENTITIES(", Line, ")] Expected AcDbCircle got ", check)
-        return NewParseError("expected AcDbCircle")
+    if extractHandleAndOwner(r, &Handle, &Owner) != nil {
+        return r.Err()
     }
 
-    coords, err := r.ConsumeCoordinates3D()
-    if err != nil { return err }
-    radius, err := r.ConsumeFloat(40, "expected radius")
-    if err != nil { return err }
+    circle := entity.NewCircle(Handle, Owner)
 
-    circle.Coordinates = coords
-    circle.Radius      = radius
+    if parseAcDbEntityE(r, circle) != nil || r.AssertNextLine("AcDbCircle") != nil {
+        return r.Err()
+    }
+
+    r.ConsumeCoordinates(circle.Coordinates[:])
+    r.ConsumeFloat(40, "expected radius", &circle.Radius)
 
     dxf.Circles = append(dxf.Circles, circle)
-    return nil
+    return r.Err()
 }
 
 func ParseText(r *Reader, dxf *drawing.Dxf) error {
-    result, err := extractHandleAndOwner(r)
-    if err != nil { return err }
-    text    := entity.NewMText(result[0], result[1])
+    if extractHandleAndOwner(r, &Handle, &Owner) != nil {
+        return r.Err()
+    }
+    
+    text := entity.NewMText(Handle, Owner)
 
-    err = parseAcDbEntityE(r, text)
-    if err != nil { return err }
-    check, err := r.ConsumeDxfLine()
-    if err != nil { return err }
-
-    if check.Line != "AcDbText" {
-        log.Println("[ENTITIES(", Line, ")] Expected AcDbText got ", check)
-        return NewParseError("expected AcDbText")
+    if parseAcDbEntityE(r, text) != nil || r.AssertNextLine("AcDbText") != nil {
+        return r.Err()
     }
 
-    code, err := r.PeekCode()
-    if err != nil { return err }
-    if code == 39 {
-        // thickness
-        _, err = r.ConsumeFloat(39, "expected thickness")
-        if err != nil { return err }
-    }
+    r.ConsumeFloatIf(39, "expected thickness", nil)
 
     // first alignment point
-    _, err = r.ConsumeCoordinates3D()
-    if err != nil { return err }
+    coords := [3]float64{0.0,0.0,0.0}
+    r.ConsumeCoordinates(coords[:])
+    r.ConsumeCoordinates(coords[:])
 
-    _, err = r.ConsumeFloat(40, "expected text height")
-    if err != nil { return err }
+    r.ConsumeFloat(40, "expected text height", nil)
+    r.ConsumeStr(nil) // "[1] default value the string itself"
 
-    _, err = r.ConsumeDxfLine() // [1] default value the string itself
-    if err != nil { return err }
+    r.ConsumeNumberIf(50, DEC_RADIX, "text rotation default 0", nil)
 
-    code, err = r.PeekCode()
-    if err != nil { return err }
+    r.ConsumeFloatIf(41, "relative x scale factor default 1", nil)
+    r.ConsumeFloatIf(51, "oblique angle default 0", nil)
 
-    if code == 50 {
-        _, err = r.ConsumeDxfLine() // text rotation default 0
-        if err != nil { return err }
-    }
+    r.ConsumeStrIf(7, nil) // "text style name default STANDARD"
 
-    code, err = r.PeekCode()
-    if err != nil { return err }
-    if code == 41 {
-        _, err = r.ConsumeDxfLine() // relative x scale factor default 1
-        if err != nil { return err }
-    }
+    r.ConsumeNumberIf(71, DEC_RADIX, "text generation flags default 0", nil)
+    r.ConsumeNumberIf(72, DEC_RADIX, "horizontal text justification default 0", nil)
 
-    code, err = r.PeekCode()
-    if err != nil { return err }
-    if code == 51 {
-        _, err = r.ConsumeDxfLine() // oblique angle default 0
-        if err != nil { return err }
-    }
+    r.ConsumeCoordinatesIf(11, coords[:])
+    // XYZ extrusion direction
+    r.ConsumeCoordinatesIf(210, coords[:]) // optional default 0,0,1
 
-    code, err = r.PeekCode()
-    if err != nil { return err }
-    if code == 7 {
-        _, err = r.ConsumeDxfLine() // text style name default STANDARD
-        if err != nil { return err }
-    }
-
-    code, err = r.PeekCode()
-    if err != nil { return err }
-    if code == 71 {
-        _, err = r.ConsumeDxfLine() // text generation flags default 0
-        if err != nil { return err }
-    }
-
-    code, err = r.PeekCode()
-    if err != nil { return err }
-    if code == 72 {
-        _, err = r.ConsumeDxfLine() // horizontal text justification default 0
-        if err != nil { return err }
-    }
-
-    code, err = r.PeekCode()
-    if err != nil { return err }
-    if code == 11 {
-        // second alignment point
-        _, err = r.ConsumeCoordinates3D()
-        if err != nil { return err }
-    }
-
-    // optional default = 0, 0, 1
-    code, err = r.PeekCode()
-    if err != nil { return err }
-
-    if code == 210 {
-        // XYZ extrusion direction
-        _, err = r.ConsumeCoordinates3D()
-    }
-
-    check, err = r.ConsumeDxfLine()
-    if err != nil { return err }
-
-    if check.Line != "AcDbText" {
-        log.Println("[ENTITIES(", Line, ")] Expected AcDbText got ", check)
-        return NewParseError("expected AcDbText")
+    if r.AssertNextLine("AcDbText") != nil {
+        return r.Err()
     }
 
     // Group 72 and 73 integer codes 
     // https://help.autodesk.com/view/OARX/2024/ENU/?guid=GUID-62E5383D-8A14-47B4-BFC4-35824CAE8363
 
-    code, err = r.PeekCode()
-    if err != nil { return err }
-    if code == 73 {
-        _, err = r.ConsumeDxfLine() // Vertical text justification type default 0
-        if err != nil { return err }
-    }
+    r.ConsumeNumberIf(73, DEC_RADIX, "vertical text justification type default 0", nil)
 
     _ = dxf
-    return nil
+    _ = coords
+    return r.Err()
 }
 
 func ParseMText(r *Reader, dxf *drawing.Dxf) error {
-    result, err := extractHandleAndOwner(r)
-    if err != nil { return err }
-    mText   := entity.NewMText(result[0], result[1])
-
-    err = parseAcDbEntityE(r, mText)
-    if err != nil { return err }
-    check, err := r.ConsumeDxfLine()
-    if err != nil { return err }
-
-    if check.Line != "AcDbMText" {
-        log.Println("[ENTITIES(", Line, ")] Expected AcDbMText got ", check)
-        return NewParseError("expected AcDbMText")
+    if extractHandleAndOwner(r, &Handle, &Owner) != nil {
+        return r.Err()
     }
 
-    coords, err := r.ConsumeCoordinates3D()
-    if err != nil { return err }
-    textHeight, err := r.ConsumeFloat(40, "expected text height")
-    if err != nil { return err }
+    mText   := entity.NewMText(Handle, Owner)
+
+    if parseAcDbEntityE(r, mText) != nil || r.AssertNextLine("AcDbMText") != nil {
+        return r.Err()
+    }
+
+    r.ConsumeCoordinates(mText.Coordinates[:])
+    r.ConsumeFloat(40, "expected text height", &mText.TextHeight)
 
     // TODO: https://ezdxf.readthedocs.io/en/stable/dxfinternals/entities/mtext.html
-    _, err = r.ConsumeFloat(41, "rectangle width")
-    if err != nil { return err }
+    r.ConsumeFloat(41, "rectangle width", nil)
+    r.ConsumeFloat(46, "column height", nil)
 
-    _, err = r.ConsumeFloat(46, "column height")
-    if err != nil { return err }
+    r.ConsumeNumber(71, DEC_RADIX, "attachment point", &mText.Layout)
+    r.ConsumeNumber(72, DEC_RADIX, "direction (ex: left to right)", &mText.Direction)
 
-    layout, err := r.ConsumeNumber(71, 10, "attachment point")
-    if err != nil { return err }
-    direction, err := r.ConsumeNumber(72, 10, "direction (ex: left to right)")
-    if err != nil { return err }
-
-    mText.Coordinates   = coords
-    mText.TextHeight    = textHeight
-
-    mText.Layout        = uint8(layout)
-    mText.Direction     = uint8(direction)
-
+    // TODO: implement more helper :smelting:
     code, err := r.PeekCode()
     if err != nil { return err }
 
     for code == 1 || code == 3 {
         line, err := r.ConsumeDxfLine()
         if err != nil { return err }
+
         mText.Text          = append(mText.Text, line.Line)
 
         code, err = r.PeekCode()
         if err != nil { return err }
     }
 
-    line, err := r.ConsumeDxfLine()
-    if err != nil { return err }
+    r.ConsumeStr(&mText.TextStyle)
+    r.ConsumeCoordinates(mText.Vector[:])
 
-    vector, err := r.ConsumeCoordinates3D()
-    if err != nil { return err }
-    spacing, err := r.ConsumeNumber(73, 10, "line spacing")
-
-    mText.TextStyle     = line.Line
-    mText.Vector        = vector
-    mText.LineSpacing   = uint8(spacing)
-
-    // [44] LineSpacingFactor
-    _, err              = r.ConsumeDxfLine()
-    if err != nil { return err }
+    r.ConsumeNumber(73, DEC_RADIX, "line spacing", &mText.LineSpacing)
+    r.ConsumeFloat(44, "line spacing factor", nil)
 
     dxf.MTexts = append(dxf.MTexts, mText)
-    return nil
+    return r.Err()
 }
 
 func ParseHatch(r *Reader, dxf *drawing.Dxf) error {
-    result, err := extractHandleAndOwner(r)
-    if err != nil { return err }
-    hatch   := entity.NewMText(result[0], result[1])
+    if extractHandleAndOwner(r, &Handle, &Owner) != nil {
+        return r.Err()
+    }
 
-    err = parseAcDbEntityE(r, hatch)
-    if err != nil { return err }
-    check, err := r.ConsumeDxfLine()
-    if err != nil { return err }
+    hatch := entity.NewMText(Handle, Owner) // TODO: hatch
 
-    if check.Line != "AcDbHatch" {
-        log.Println("[ENTITIES(", Line, ")] Expected AcDbHatch got ", check)
-        return NewParseError("expected AcDbHatch")
+    if parseAcDbEntityE(r, hatch) != nil || r.AssertNextLine("AcDbHatch") != nil {
+        return r.Err()
     }
 
     // 10,20,30
-    _, err = r.ConsumeCoordinates3D()
-    if err != nil { return err }
+    coords := [3]float64{0.0,0.0,0.0}
+    r.ConsumeCoordinates(coords[:])
 
     // TODO: [210/220/230] Extrustion direction (only need 2D maybe later)
-    _, err = r.ConsumeDxfLine()
-    if err != nil { return err }
-    _, err = r.ConsumeDxfLine()
-    if err != nil { return err }
-    _, err = r.ConsumeDxfLine()
-    if err != nil { return err }
+    r.ConsumeCoordinates(coords[:])
 
-    patternName, err := r.ConsumeDxfLine()
-    if err != nil { return err }
-    solidFillFlag, err := r.ConsumeNumber(70, 10, "solid fill flag")
-    if err != nil { return err }
-    associativityFlag, err := r.ConsumeNumber(71, 10, "associativity flag")
-    if err != nil { return err }
+    r.ConsumeStr(nil) // pattern name
+    r.ConsumeNumber(70, DEC_RADIX, "solid fill flag", nil)
+    r.ConsumeNumber(71, DEC_RADIX, "associativity flag", nil)
 
     // Number of boundary paths?
-    _, err = r.ConsumeNumber(91, 10, "boundary paths")
-    if err != nil { return err }
-    pt, err := r.ConsumeNumber(92, 10, "boundary path type")
-    if err != nil { return err }
+    r.ConsumeNumber(91, DEC_RADIX, "boundary paths", nil)
+
+    pt := uint64(0)
+    r.ConsumeNumber(92, DEC_RADIX, "boundary path type", &pt)
 
     if pt & 2 > 0 {
-        b, err := r.ConsumeNumber(72, 10, "has bulge flag")
-        if err != nil { return err }
-        _, err = r.ConsumeNumber(73, 10, "is closed flag")
-        if err != nil { return err }
-        n, err := r.ConsumeNumber(93, 10, "number fo polyline vertices")
-        if err != nil { return err }
+        r.ConsumeNumber(72, DEC_RADIX, "has bulge flag", nil)
+        r.ConsumeNumber(73, DEC_RADIX, "is closed flag", nil)
+
+        n := uint64(0)
+        r.ConsumeNumber(93, DEC_RADIX, "number fo polyline vertices", &n)
+
+        coord2D := [2]float64{0.0,0.0}
 
         for i := uint64(0); i < n; i++ {
-            _, err = r.ConsumeCoordinates2D()
-            if err != nil { return err }
-            code, err := r.PeekCode()
-            if err != nil { return err }
-            if code == 42 {
-                _ ,err = r.ConsumeFloat(42, "expected bulge")
-                if err != nil { return err }
-            }
+            r.ConsumeCoordinates(coord2D[:])
+            r.ConsumeFloatIf(42, "expected bulge", nil)
         }
-
-        _ = b
     } else {
-        n, err := r.ConsumeNumber(93, 10, "number of edges in this boundary path")
-        if err != nil { return err }
-        t, err := r.ConsumeNumber(72, 10, "edge type data")
-        if err != nil { return err }
+        n, t := uint64(0), uint64(0)
+
+        r.ConsumeNumber(93, DEC_RADIX, "number of edges in this boundary path", &n)
+        r.ConsumeNumber(72, DEC_RADIX, "edge type data", &t)
+
+        coord2D := [2]float64{0.0,0.0}
 
         switch t {
         case 1:
             // Parse Line
             for i := uint64(0); i < n; i++ {
-                _, err = r.ConsumeCoordinates2D()
-                if err != nil { return err }
+                r.ConsumeCoordinates(coord2D[:])
             }
         case 2:
             // Circular arc
             for i := uint64(0); i < n; i++ {
-                _,err = r.ConsumeCoordinates2D() 
-                if err != nil { return err }
+                r.ConsumeCoordinates(coord2D[:])
             }
 
-            _, err = r.ConsumeNumber(40, 10, "radius")
-            if err != nil { return err }
-            _, err = r.ConsumeNumber(50, 10, "start angle")
-            if err != nil { return err }
-            _, err = r.ConsumeNumber(51, 10, "end angle")
-            if err != nil { return err }
-            _, err = r.ConsumeNumber(73, 10, "is counterclockwise flag")
-            if err != nil { return err }
+            r.ConsumeNumber(40, DEC_RADIX, "radius", nil)
+            r.ConsumeNumber(50, DEC_RADIX, "start angle", nil)
+            r.ConsumeNumber(51, DEC_RADIX, "end angle", nil)
+            r.ConsumeNumber(73, DEC_RADIX, "is counterclockwise flag", nil)
         case 3:
             // Elliptic arc
             for i := uint64(0); i < n; i++ { 
-                _, err = r.ConsumeCoordinates2D() 
-                if err != nil { return err }
+                r.ConsumeCoordinates(coord2D[:])
             }
 
-            _, err = r.ConsumeNumber(40, 10, "length of minor axis")
-            if err != nil { return err }
-            _, err = r.ConsumeNumber(50, 10, "start angle")
-            if err != nil { return err }
-            _, err = r.ConsumeNumber(51, 10, "end angle")
-            if err != nil { return err }
-            _, err = r.ConsumeNumber(73, 10, "is counterclockwise flag")
-            if err != nil { return err }
+            r.ConsumeNumber(40, DEC_RADIX, "length of minor axis", nil)
+            r.ConsumeNumber(50, DEC_RADIX, "start angle", nil)
+            r.ConsumeNumber(51, DEC_RADIX, "end angle", nil)
+            r.ConsumeNumber(73, DEC_RADIX, "is counterclockwise flag", nil)
         case 4:
             // Spine
-            _, err = r.ConsumeNumber(94, 10, "degree")
-            if err != nil { return err }
-            _, err = r.ConsumeNumber(73, 10, "rational")
-            if err != nil { return err }
-            _, err = r.ConsumeNumber(74, 10, "periodic")
-            if err != nil { return err }
-            k, err := r.ConsumeNumber(95, 10, "number of knots")
-            if err != nil { return err }
-            _, err = r.ConsumeNumber(96, 10, "number of control points")
-            if err != nil { return err }
+            r.ConsumeNumber(94, DEC_RADIX, "degree", nil)
+            r.ConsumeNumber(73, DEC_RADIX, "rational", nil)
+            r.ConsumeNumber(74, DEC_RADIX, "periodic", nil)
+            k := uint64(0)
+            r.ConsumeNumber(95, DEC_RADIX, "number of knots", &k)
+            r.ConsumeNumber(96, DEC_RADIX, "number of control points", nil)
 
             for i := uint64(0); i < k; i++ {
-                _, err = r.ConsumeNumber(40, 10, "knot values")
-                if err != nil { return err }
-                _, err = r.ConsumeCoordinates2D()
-                if err != nil { return err }
+                r.ConsumeNumber(40, DEC_RADIX, "knot values", nil)
+                r.ConsumeCoordinates(coord2D[:])
             }
 
-            code, err := r.PeekCode()
-            if err != nil { return err }
-            if code == 42 {
-                _, err = r.ConsumeNumber(42, 10, "weights") // optional 1
-                if err != nil { return err }
-            }
+            r.ConsumeNumberIf(42, DEC_RADIX, "weights", nil) // optional 1
 
-            _, err = r.ConsumeNumber(97, 10, "number of fit data")
-            if err != nil { return err }
-            _, err = r.ConsumeNumber(11, 10, "X fit datum value")
-            if err != nil { return err }
-            _, err = r.ConsumeNumber(21, 10, "Y fit datum value")
-            if err != nil { return err }
-            _, err = r.ConsumeNumber(12, 10, "X start tangent")
-            if err != nil { return err }
-            _, err = r.ConsumeNumber(22, 10, "Y start tangent")
-            if err != nil { return err }
-            _, err = r.ConsumeNumber(13, 10, "X end tangent")
-            if err != nil { return err }
-            _, err = r.ConsumeNumber(23, 10, "Y end tangent")
-            if err != nil { return err }
+            r.ConsumeNumber(97, DEC_RADIX, "number of fit data", nil)
+            r.ConsumeNumber(11, DEC_RADIX, "X fit datum value", nil)
+            r.ConsumeNumber(21, DEC_RADIX, "Y fit datum value", nil)
+            r.ConsumeNumber(12, DEC_RADIX, "X start tangent", nil)
+            r.ConsumeNumber(22, DEC_RADIX, "Y start tangent", nil)
+            r.ConsumeNumber(13, DEC_RADIX, "X end tangent", nil)
+            r.ConsumeNumber(23, DEC_RADIX, "Y end tangent", nil)
         default:
             log.Println("[ENTITIES(HATCH - ", Line, " )] invalid edge type data: ", t)
             return NewParseError("invalid edge type data")
         }
     }
 
-    bo, err := r.ConsumeNumber(97, 10, "number of source boundary objects")
-    if err != nil { return err }
+    bo, sp := uint64(0), uint64(0)
+
+    r.ConsumeNumber(97, DEC_RADIX, "number of source boundary objects", &bo)
 
     for i := uint64(0); i < bo; i++ {
-        _, err = r.ConsumeNumber(330, 10, "reference to source boundary objects")
-        if err != nil { return err }
+        r.ConsumeNumber(330, DEC_RADIX, "reference to source boundary objects", nil)
     }
 
-    _, err = r.ConsumeNumber(75, 10, "hatch style")
-    if err != nil { return err }
-    _, err = r.ConsumeNumber(76, 10, "hatch pattern type")
-    if err != nil { return err }
-
-    sp, err := r.ConsumeNumber(98, 10, "number of seed points")
-    if err != nil { return err }
+    r.ConsumeNumber(75, DEC_RADIX, "hatch style", nil)
+    r.ConsumeNumber(76, DEC_RADIX, "hatch pattern type", nil)
+    r.ConsumeNumber(98, DEC_RADIX, "number of seed points", &sp)
 
     if sp != 0 {
         log.Fatal("TODO(", Line, "): hatch implement seed points")
     }
 
-    _ = patternName
-    _ = solidFillFlag
-    _ = associativityFlag
     _ = dxf
-    return nil
+    return r.Err()
 }
 
 func ParseEllipse(r *Reader, dxf *drawing.Dxf) error {
-    result, err := extractHandleAndOwner(r)
-    if err != nil { return err }
-    ellipse := entity.NewMText(result[0], result[1]) // todo ellipse
-
-    err = parseAcDbEntityE(r, ellipse)
-    if err != nil { return err }
-    check, err := r.ConsumeDxfLine()
-    if err != nil { return err }
-
-    if check.Line != "AcDbEllipse" {
-        log.Println("[ENTITIES(", Line, ")] Expected AcDbEllipse got ", check)
-        return NewParseError("expected AcDbEllipse")
+    if extractHandleAndOwner(r, &Handle, &Owner) != nil {
+        return r.Err()
     }
 
-    _, err = r.ConsumeCoordinates3D() // Center point
-    if err != nil { return err }
-    _, err = r.ConsumeCoordinates3D() // endpoint of major axis
-    if err != nil { return err }
+    ellipse := entity.NewMText(Handle, Owner) // TODO: ellipse
+
+    if parseAcDbEntityE(r, ellipse) != nil || r.AssertNextLine("AcDbEllipse") != nil {
+        return r.Err()
+    }
+
+    coord3D := [3]float64{0.0,0.0,0.0}
+
+    r.ConsumeCoordinates(coord3D[:]) // Center point
+    r.ConsumeCoordinates(coord3D[:]) // endpoint of major axis
 
     // optional default = 0, 0, 1
-    code, err := r.PeekCode()
-    if err != nil { return err }
-    if code == 210 {
-        // XYZ extrusion direction
-        _, err = r.ConsumeCoordinates3D()
-        if err != nil { return err }
-    }
+    // XYZ extrusion direction
+    r.ConsumeCoordinatesIf(210, coord3D[:])
 
-    _, err = r.ConsumeFloat(40, "ratio of minor axis to major axis")
-    if err != nil { return err }
-
-    _, err = r.ConsumeFloat(41, "start parameter")
-    if err != nil { return err }
-
-    _, err = r.ConsumeFloat(42, "end parameter")
-    if err != nil { return err }
+    r.ConsumeFloat(40, "ratio of minor axis to major axis", nil)
+    r.ConsumeFloat(41, "start parameter", nil)
+    r.ConsumeFloat(42, "end parameter", nil)
 
     _ = dxf
-    return nil
+    return r.Err()
 }
 
 func ParsePoint(r *Reader, dxf *drawing.Dxf) error {
-    result, err := extractHandleAndOwner(r)
-    if err != nil { return err }
-    point   := entity.NewMText(result[0], result[1]) // TODO: point
-
-    err = parseAcDbEntityE(r, point)
-    if err != nil { return err }
-    check, err := r.ConsumeDxfLine()
-    if err != nil { return err }
-
-    if check.Line != "AcDbPoint" {
-        log.Println("[ENTITIES(", Line, ")] Expected AcDbPoint got ", check)
-        return NewParseError("expected AcDbPoint")
+    if extractHandleAndOwner(r, &Handle, &Owner) != nil {
+        return r.Err()
     }
 
-    _, err = r.ConsumeCoordinates3D() // Point location
-    if err != nil { return err }
-    code, err := r.PeekCode()
-    if err != nil { return err }
-    if code == 39 {
-        _, err = r.ConsumeNumber(39, 10, "thickness")
-        if err != nil { return err }
+    point := entity.NewMText(Handle, Owner) // TODO: point
+
+    if parseAcDbEntityE(r, point) != nil || r.AssertNextLine("AcDbPoint") != nil {
+        return r.Err()
     }
+
+    coord3D := [3]float64{0.0,0.0,0.0}
+
+    r.ConsumeCoordinates(coord3D[:]) // Point location
+    r.ConsumeNumberIf(39, DEC_RADIX, "thickness", nil)
 
     // optional default = 0, 0, 1
-    code, err = r.PeekCode()
-    if err != nil { return err }
-    if code == 210 {
-        // XYZ extrusion direction
-        _, err = r.ConsumeCoordinates3D()
-        if err != nil { return err }
-    }
+    // XYZ extrusion direction
+    r.ConsumeCoordinatesIf(210, coord3D[:]) // Point location
+    r.ConsumeFloatIf(50, "angle of the x axis", nil)
 
-    code, err = r.PeekCode()
-    if err != nil { return err }
-    if code == 50 {
-        _, err = r.ConsumeFloat(50, "angle of the x axis")
-        if err != nil { return err }
-    }
-   
     _ = dxf
-    return nil
+    return r.Err()
 }
 
 // TODO: have to implement block section first
 func ParseInsert(r *Reader, dxf *drawing.Dxf) error {
-    result, err := extractHandleAndOwner(r)
-    if err != nil { return err }
-    insert  := entity.NewMText(result[0], result[1]) // TODO: insert
-
-    err = parseAcDbEntityE(r, insert)
-    if err != nil { return err }
-    check, err := r.ConsumeDxfLine()
-    if err != nil { return err }
-
-    if check.Line != "AcDbBlockReference" {
-        log.Println("[ENTITIES(", Line, ")] Expected AcDbBlockReference got ", check)
-        return NewParseError("expected AcDbBlockReference")
+    if extractHandleAndOwner(r, &Handle, &Owner) != nil {
+        return r.Err()
     }
 
-    code, err := r.PeekCode()
-    if err != nil { return err }
-    if code == 66 {
-        _, err = r.ConsumeDxfLine() // Variable attributes-follow flag default = 0
-        if err != nil { return err }
+    insert := entity.NewMText(Handle, Owner) // TODO: insert
+
+    if parseAcDbEntityE(r, insert) != nil || r.AssertNextLine("AcDbBlockReference") != nil {
+        return r.Err()
     }
 
-    _, err = r.ConsumeDxfLine() // Block name
-    if err != nil { return err }
-    _, err = r.ConsumeCoordinates3D() // insertion point
-    if err != nil { return err }
+    coord3D := [3]float64{0.0,0.0,0.0}
 
-    code, err = r.PeekCode()
-    if err != nil { return err }
-    if code == 41 {
-        _, err = r.ConsumeDxfLine() // xyz scale factors default 1
-        if err != nil { return err }
-        _, err = r.ConsumeDxfLine() // xyz scale factors default 1
-        if err != nil { return err }
-        _, err = r.ConsumeDxfLine() // xyz scale factors default 1
-        if err != nil { return err }
-    }
+    // Variable attributes-follow flag default = 0
+    r.ConsumeStrIf(66, nil)
+    r.ConsumeStr(nil) // Block name
+    r.ConsumeCoordinates(coord3D[:]) // insertion point
 
-    code, err = r.PeekCode()
-    if err != nil { return err }
-    if code == 50 {
-        _, err = r.ConsumeDxfLine() // rotation angle default = 0
-        if err != nil { return err }
-    }
+    r.ConsumeFloatIf(41, "x scale factor default 1", nil)
+    r.ConsumeFloatIf(42, "x scale factor default 1", nil)
+    r.ConsumeFloatIf(43, "x scale factor default 1", nil)
 
-    code, err = r.PeekCode()
-    if err != nil { return err }
-    if code == 70 {
-        _, err = r.ConsumeDxfLine() // column count default = 1
-        if err != nil { return err }
-    }
-    code, err = r.PeekCode()
-    if err != nil { return err }
-    if code == 71 {
-        _, err = r.ConsumeDxfLine() // row count default = 1
-        if err != nil { return err }
-    }
+    r.ConsumeFloatIf(50, "rotation angle default 0", nil)
+    r.ConsumeFloatIf(70, "column count default 1", nil)
+    r.ConsumeFloatIf(71, "row count default 1", nil)
 
-    code, err = r.PeekCode()
-    if err != nil { return err }
-    if code == 44 {
-        _, err = r.ConsumeDxfLine() // column spacing default = 0
-        if err != nil { return err }
-    }
-    code, err = r.PeekCode()
-    if err != nil { return err }
-    if code == 45 {
-        _, err = r.ConsumeDxfLine() // row spacing default = 0
-        if err != nil { return err }
-    }
+    r.ConsumeFloatIf(44, "column spacing default 0", nil)
+    r.ConsumeFloatIf(45, "row spacing default 0", nil)
 
     // optional default = 0, 0, 1
-    code, err = r.PeekCode()
-    if err != nil { return err }
-    if code == 210 {
-        // XYZ extrusion direction
-        _, err = r.ConsumeCoordinates3D()
-        if err != nil { return err }
-    }
+    // XYZ extrusion direction
+    r.ConsumeCoordinatesIf(210, coord3D[:])
 
     // TODO: parse insert
     // attrib =>  987212
