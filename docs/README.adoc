@@ -1,3 +1,13 @@
 = dxf
+aichingert
+:toc:
+:toclevels: 3
 
-dxf parser
+early stages of a dfx parser
+
+== support
+
+* [ ] header ~
+* [ ] tables -
+* [ ] blocks -
+* [ ] entities ~

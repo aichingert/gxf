@@ -15,7 +15,10 @@ func NewArc(handle uint64, owner uint64) *Arc {
             owner:      owner,
             LayerName:  "",
         },
-        Circle:         nil,
+        Circle:         &Circle{
+            Coordinates:    [3]float64{0.0, 0.0, 0.0},
+            Radius:         0.0,
+        },
         StartAngle:     0.0,
         EndAngle:       0.0,
     }

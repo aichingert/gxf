@@ -139,15 +139,8 @@ func ParseArc(r *Reader, dxf *drawing.Dxf) error {
         return r.Err()
     }
 
-    circle := &entity.Circle {
-        Coordinates:    [3]float64{0.0,0.0,0.0},
-        Radius:         0.0,
-    }
-
-    r.ConsumeCoordinates(circle.Coordinates[:])
-    r.ConsumeFloat(40, "expected radius", &circle.Radius)
-
-    arc.Circle = circle
+    r.ConsumeCoordinates(arc.Circle.Coordinates[:])
+    r.ConsumeFloat(40, "expected radius", &arc.Circle.Radius)
 
     if r.AssertNextLine("AcDbArc") != nil {
         return r.Err()
