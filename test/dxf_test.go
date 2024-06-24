@@ -1,15 +1,17 @@
 package test
 
 import (
-    "log"
     "testing"
 
     "github.com/aichingert/dxf"
 )
 
+// TODO: implement proper tests
+// with minimal things
+
 func TestOpen(t *testing.T) {
-    drawing := dxf.Open("test.dxf")
+    drawing, err := dxf.Open("test.dxf")
 
-    log.Println(drawing)
-
+    _ = drawing
+    _ = err
 }
