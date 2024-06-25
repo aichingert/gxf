@@ -1,27 +1,26 @@
 package entity
 
 type Entity interface {
-    Handle()    uint64
-    Owner()     uint64
-
-    GetLayerName() *string
+	GetHandle() *uint64
+	GetOwner() *uint64
+	GetLayerName() *string
 }
 
-type entity struct {
-    handle      uint64
-    owner       uint64
+type EntityData struct {
+	Handle uint64
+	Owner  uint64
 
-    LayerName   string
+	LayerName string
 }
 
-func (e *entity) Handle() uint64 {
-    return e.handle
+func (e *EntityData) GetHandle() *uint64 {
+	return &e.Handle
 }
 
-func (e *entity) Owner() uint64 {
-    return e.owner
+func (e *EntityData) GetOwner() *uint64 {
+	return &e.Owner
 }
 
-func (e *entity) GetLayerName() *string {
-    return &e.LayerName
+func (e *EntityData) GetLayerName() *string {
+	return &e.LayerName
 }

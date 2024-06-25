@@ -1,19 +1,36 @@
 package blocks
 
+import (
+	"github.com/aichingert/dxf/pkg/entity"
+)
+
 type Block struct {
-    BlockName   string
-    LayerName   string
+	Entity *entity.EntityData
 
-    Owner       uint64
-    Handle      uint64
-    EndHandle   uint64
+	BlockName string
+	EndHandle uint64
+	Flag      uint64
 
-    // TODO: make this an int
-    Flag        string
+	XrefPath    string
+	Description string
+	Coordinates [3]float64
 
-    XrefPath    string
-    Description string
-    Coordinates [3]float64
+	// TODO: ATTDEF
+}
 
-    // TODO: ATTDEF
+func NewBlock() *Block {
+	return &Block{
+		Entity: &entity.EntityData{
+			Handle:    0,
+			Owner:     0,
+			LayerName: "",
+		},
+		BlockName: "",
+		EndHandle: 0,
+		Flag:      0,
+
+		XrefPath:    "",
+		Description: "",
+		Coordinates: [3]float64{0.0, 0.0, 0.0},
+	}
 }

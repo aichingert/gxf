@@ -1,20 +1,20 @@
 package entity
 
 type Line struct {
-    *entity
+	Entity *EntityData
 
-    Src [3]float64
-    Dst [3]float64
+	Src [3]float64
+	Dst [3]float64
 }
 
-func NewLine(handle uint64, owner uint64) *Line {
-    return &Line {
-        entity: &entity{
-            handle: handle,
-            owner: owner,
-            LayerName: "",
-        },
-        Src:    [3]float64{0.0,0.0,0.0},
-        Dst:    [3]float64{0.0,0.0,0.0},
-    }
+func NewLine() *Line {
+	return &Line{
+		Entity: &EntityData{
+			Handle:    0,
+			Owner:     0,
+			LayerName: "",
+		},
+		Src: [3]float64{0.0, 0.0, 0.0},
+		Dst: [3]float64{0.0, 0.0, 0.0},
+	}
 }

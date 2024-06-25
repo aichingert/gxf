@@ -1,36 +1,35 @@
 package header
 
 type Header struct {
-    // Stores the insertion base point set by BASE, which gets expressed as a UCS coordinate for the current space. 
-    InsBase             [3]float64
-    // 
-    ExtMin              [3]float64
-    // 
-    ExtMax              [3]float64
-    // 
-    LimMin              [2]float64
-    // 
-    LimMax              [2]float64
+	// Stores the insertion base point set by BASE, which gets expressed as a UCS coordinate for the current space.
+	InsBase [3]float64
+	//
+	ExtMin [3]float64
+	//
+	ExtMax [3]float64
+	//
+	LimMin [2]float64
+	//
+	LimMax [2]float64
 
-
-    Modes               map[string]string
-    Variables           map[string]string
-    CustomProperties    map[string]string
+	Modes            map[string]string
+	Variables        map[string]string
+	CustomProperties map[string]string
 }
 
 func New() *Header {
-    header := new (Header)
+	header := new(Header)
 
-    header.LimMax  = [2]float64{0.0, 0.0}
-    header.LimMin  = [2]float64{0.0, 0.0}
+	header.LimMax = [2]float64{0.0, 0.0}
+	header.LimMin = [2]float64{0.0, 0.0}
 
-    header.ExtMin  = [3]float64{0.0, 0.0, 0.0}
-    header.ExtMax  = [3]float64{0.0, 0.0, 0.0}
-    header.InsBase = [3]float64{0.0, 0.0, 0.0}
-    
-    header.Modes = make(map[string]string)
-    header.Variables = make(map[string]string)
-    header.CustomProperties = make(map[string]string)
+	header.ExtMin = [3]float64{0.0, 0.0, 0.0}
+	header.ExtMax = [3]float64{0.0, 0.0, 0.0}
+	header.InsBase = [3]float64{0.0, 0.0, 0.0}
 
-    return header
+	header.Modes = make(map[string]string)
+	header.Variables = make(map[string]string)
+	header.CustomProperties = make(map[string]string)
+
+	return header
 }

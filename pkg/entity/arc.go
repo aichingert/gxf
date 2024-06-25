@@ -1,25 +1,22 @@
-package entity 
+package entity
 
 type Arc struct {
-    *entity
-    Circle      *Circle
+	Entity *EntityData
+	Circle *Circle
 
-    StartAngle  float64
-    EndAngle    float64
+	StartAngle float64
+	EndAngle   float64
 }
 
-func NewArc(handle uint64, owner uint64) *Arc {
-    return &Arc {
-        entity: &entity{
-            handle:     handle,
-            owner:      owner,
-            LayerName:  "",
-        },
-        Circle:         &Circle{
-            Coordinates:    [3]float64{0.0, 0.0, 0.0},
-            Radius:         0.0,
-        },
-        StartAngle:     0.0,
-        EndAngle:       0.0,
-    }
+func NewArc() *Arc {
+	return &Arc{
+		Entity: &EntityData{
+			Handle:    0,
+			Owner:     0,
+			LayerName: "",
+		},
+		Circle:     NewCircle(),
+		StartAngle: 0.0,
+		EndAngle:   0.0,
+	}
 }
