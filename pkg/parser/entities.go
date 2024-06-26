@@ -32,6 +32,10 @@ func ParseEntities(r *Reader, dxf *drawing.Dxf) error {
 			Wrap(ParseInsert, r, dxf)
         case "ATTRIB":
             Wrap(ParseAttrib, r, dxf)
+        case "SEQEND":
+            Wrap(ParseSeqend, r, dxf)
+        case "ENDSEC":
+            return r.Err()
 		default:
 			log.Println("[ENTITIES] ", Line, ": ", r.DxfLine().Line)
 			return NewParseError("unknown entity")
@@ -178,7 +182,18 @@ func ParseAttrib(r *Reader, dxf *drawing.Dxf) error {
     if ParseAcDbEntity(r, attrib.Entity) != nil ||
         ParseAcDbText(r, attrib)         != nil ||
         ParseAcDbAttribute(r, attrib)    != nil {
-        log.Println(r.Err())
+        return r.Err()
+    }
+
+    _ = dxf
+    return r.Err()
+}
+
+// TODO: implement seqend
+func ParseSeqend(r *Reader, dxf *drawing.Dxf) error {
+    attrib := entity.NewMText() 
+
+    if ParseAcDbEntity(r, attrib.Entity) != nil {
         return r.Err()
     }
 
