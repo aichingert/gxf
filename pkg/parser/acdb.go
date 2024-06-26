@@ -47,8 +47,8 @@ func ParseAcDbPolyline(r *Reader, polyline *entity.Polyline) error {
 	r.ConsumeNumber(90, DEC_RADIX, "number of vertices", &polyline.Vertices)
 	r.ConsumeNumber(70, DEC_RADIX, "polyline flag", &polyline.Flag)
 
-	if r.ConsumeFloatIf(43, "line width for each vertex", nil) {
-		log.Fatal("[ENTITIES] TODO: implement line width for each vertex")
+	if !r.ConsumeFloatIf(43, "line width for each vertex", nil) {
+		log.Fatal("[ENTITIES(", Line, ")] TODO: implement line width for each vertex")
 	}
 
 	for i := uint64(0); i < polyline.Vertices; i++ {
@@ -99,7 +99,6 @@ func ParseAcDbText(r *Reader, text *entity.MText) error {
 	r.ConsumeFloatIf(39, "expected thickness", nil)
 
 	coords3D := [3]float64{0.0, 0.0, 0.0}
-	r.ConsumeCoordinates(coords3D[:])
 	r.ConsumeCoordinates(coords3D[:])
 
 	r.ConsumeFloat(40, "expected text height", nil)

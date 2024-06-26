@@ -29,9 +29,8 @@ func ParseBlocks(r *Reader, dxf *drawing.Dxf) error {
 func parseBlock(r *Reader, dxf *drawing.Dxf) error {
 	block := blocks.NewBlock()
 
-	if ParseAcDbEntity(r, block.Entity) != nil {
-		return r.Err()
-	}
+    r.ConsumeNumber(5, 16, "handle", &block.Entity.Handle)
+    r.ConsumeNumber(330, 16, "owner", &block.Entity.Owner)
 
 	for parseSubClass(r, block) {
 	}
@@ -43,6 +42,8 @@ func parseBlock(r *Reader, dxf *drawing.Dxf) error {
 // TODO: refactor this thing as a whole
 func parseSubClass(r *Reader, block *blocks.Block) bool {
 	switch variable, _ := r.ConsumeDxfLine(); variable.Line {
+    case "AcDbEntity":
+        parseAcDbEntity(r, block)
 	case "AcDbBlockBegin":
 		parseAcDbBlockBegin(r, block)
 	case "ENDBLK":
@@ -73,25 +74,23 @@ func parseSubClass(r *Reader, block *blocks.Block) bool {
 	return true
 }
 
-/*
 func parseAcDbEntity(r *Reader, block *blocks.Block) {
 	optional, _ := r.ConsumeDxfLine()
 
 	// TODO: think about paper space visibility
 	if optional.Code != 67 {
-		block.LayerName = optional.Line
+		block.Entity.LayerName = optional.Line
 		return
 	}
 
 	// TODO: could lead to bug with start and end layername - seems like it is always the same
 	layerName, _ := r.ConsumeDxfLine()
-	block.LayerName = layerName.Line
+	block.Entity.LayerName = layerName.Line
 }
-*/
 
 func parseAcDbBlockBegin(r *Reader, block *blocks.Block) error {
 	r.ConsumeStr(&block.BlockName)
-	r.ConsumeNumber(0, DEC_RADIX, "ato", &block.Flag)
+	r.ConsumeNumber(70, DEC_RADIX, "ato", &block.Flag)
 	r.ConsumeCoordinates(block.Coordinates[:])
 
 	// assumption is that this is the blockName again
