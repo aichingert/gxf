@@ -25,6 +25,8 @@ func ParseAcDbEntity(r *Reader, entity entity.Entity) error {
 	r.ConsumeStrIf(67, nil)
 
 	r.ConsumeStr(entity.GetLayerName())
+	r.ConsumeNumberIf(60, DEC_RADIX, "object visibility", nil)
+
 	return r.Err()
 }
 
@@ -104,7 +106,7 @@ func ParseAcDbText(r *Reader, text *entity.MText) error {
 	r.ConsumeFloat(40, "expected text height", nil)
 	r.ConsumeStr(nil) // [1] default value of the string itself
 
-	r.ConsumeNumberIf(50, DEC_RADIX, "text rotation default 0", nil)
+	r.ConsumeFloatIf(50, "text rotation default 0", nil)
 	r.ConsumeFloatIf(41, "relative x scale factor default 1", nil)
 	r.ConsumeFloatIf(51, "oblique angle default 0", nil)
 
@@ -118,9 +120,10 @@ func ParseAcDbText(r *Reader, text *entity.MText) error {
 	// optional default 0, 0, 1
 	r.ConsumeCoordinatesIf(210, coords3D[:])
 
-	if r.AssertNextLine("AcDbText") != nil {
-		return r.Err()
-	}
+    line, _ := r.PeekLine()
+    if line == "AcDbText" {
+        r.ConsumeStr(nil) // second AcDbText (optional)
+    }
 
 	// group 72 and 73 integer codes
 	// https://help.autodesk.com/view/OARX/2024/ENU/?guid=GUID-62E5383D-8A14-47B4-BFC4-35824CAE8363
@@ -294,4 +297,78 @@ func ParseAcDbPoint(r *Reader, point *entity.MText) error {
 
 	_ = point
 	return r.Err()
+}
+
+// TODO: implement block reference
+func ParseAcDbBlockReference(r *Reader, reference *entity.MText) error {
+    if r.AssertNextLine("AcDbBlockReference") != nil {
+        return r.Err()
+    }
+
+	coord3D := [3]float64{0.0, 0.0, 0.0}
+
+	// Variable attributes-follow flag default = 0
+	r.ConsumeStrIf(66, nil)
+	r.ConsumeStr(nil)                // Block name
+	r.ConsumeCoordinates(coord3D[:]) // insertion point
+
+	r.ConsumeFloatIf(41, "x scale factor default 1", nil)
+	r.ConsumeFloatIf(42, "x scale factor default 1", nil)
+	r.ConsumeFloatIf(43, "x scale factor default 1", nil)
+
+	r.ConsumeFloatIf(50, "rotation angle default 0", nil)
+	r.ConsumeFloatIf(70, "column count default 1", nil)
+	r.ConsumeFloatIf(71, "row count default 1", nil)
+
+	r.ConsumeFloatIf(44, "column spacing default 0", nil)
+	r.ConsumeFloatIf(45, "row spacing default 0", nil)
+
+	// optional default = 0, 0, 1
+	// XYZ extrusion direction
+	r.ConsumeCoordinatesIf(210, coord3D[:])
+
+    _ = reference
+    return r.Err()
+}
+
+// TODO: implement attribute
+func ParseAcDbAttribute(r *Reader, attribute *entity.MText) error {
+    if r.AssertNextLine("AcDbAttribute") != nil {
+        return r.Err()
+    }
+
+    r.ConsumeStr(nil) // [2] Attribute tag
+    r.ConsumeNumber(70, DEC_RADIX, "attribute flag", nil)
+    r.ConsumeNumberIf(74, DEC_RADIX, "vertical text justification type default 0", nil) // group code 73 TEXT
+    r.ConsumeNumberIf(280, DEC_RADIX, "version number", nil)
+
+    r.ConsumeNumberIf(73, DEC_RADIX, "field length", nil)
+    r.ConsumeNumberIf(50, DEC_RADIX, "text rotation default 0", nil)
+    r.ConsumeNumberIf(41, DEC_RADIX, "relative x scale factor (width) default 0", nil) // adjusted when fit-type text is used
+    r.ConsumeNumberIf(51, DEC_RADIX, "oblique angle default 0", nil)
+    r.ConsumeStrIf(7, nil) // text style name default STANDARD
+    r.ConsumeNumberIf(71, DEC_RADIX, "text generation flags default 0", nil)
+    r.ConsumeNumberIf(72, DEC_RADIX, "horizontal text justification type default 0", nil)
+
+    coord3D := [3]float64{0.0, 0.0, 0.0}
+    r.ConsumeCoordinatesIf(11, coord3D[:])
+    r.ConsumeCoordinatesIf(210, coord3D[:])
+
+    // TODO: maybe continues?
+    // not documented
+
+    r.ConsumeStrIf(1001, nil) // AcadAnnotative
+    r.ConsumeStrIf(1000, nil) // AnnotativeData
+    r.ConsumeStrIf(1002, nil) // {
+    r.ConsumeNumberIf(1070, DEC_RADIX, "not sure", nil)
+    r.ConsumeNumberIf(1070, DEC_RADIX, "not sure", nil)
+    r.ConsumeNumberIf(1002, DEC_RADIX, "not sure", nil)
+    // }
+
+    r.ConsumeStrIf(1001, nil) // AcDbBlockRepETag
+    r.ConsumeNumberIf(1070, DEC_RADIX, "not sure", nil)
+    r.ConsumeNumberIf(1071, DEC_RADIX, "not sure", nil)
+    r.ConsumeNumberIf(1005, DEC_RADIX, "not sure", nil)
+
+    return r.Err()
 }

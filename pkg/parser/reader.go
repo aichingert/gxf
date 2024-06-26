@@ -9,9 +9,11 @@ import (
 	"strings"
 )
 
-const DXF_CODE_LINE_SIZE_IN_BYTES = 4
-const DEC_RADIX = 10
-const HEX_RADIX = 16
+const (
+    DXF_CODE_LINE_SIZE_IN_BYTES = 4
+    DEC_RADIX = 10
+    HEX_RADIX = 16
+)
 
 type Reader struct {
 	err     error
@@ -279,6 +281,34 @@ func (r *Reader) PeekCode() (uint16, error) {
 	}
 
 	return uint16(code), nil
+}
+
+// TODO: this is bad change this
+// not sure but to be refactored
+func (r *Reader) PeekLine() (string, error) {
+    if r.err != nil {
+        return "", r.err
+    }
+
+    offset := DXF_CODE_LINE_SIZE_IN_BYTES + 2
+    line, err := r.reader.Peek(offset)
+    r.err = err
+
+    if r.err != nil {
+        return "", r.err
+    }
+
+    for len(line) < 1 || line[len(line) - 1] != '\n' {
+        line, r.err = r.reader.Peek(offset)
+
+        if r.err != nil {
+            return "", r.err
+        }
+
+        offset += 1
+    }
+
+    return string(line[DXF_CODE_LINE_SIZE_IN_BYTES + 1:len(line) - 2]), r.err
 }
 
 func (r *Reader) consumeCode() (uint16, error) {

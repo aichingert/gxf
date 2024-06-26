@@ -30,6 +30,8 @@ func ParseEntities(r *Reader, dxf *drawing.Dxf) error {
 			Wrap(ParsePoint, r, dxf)
 		case "INSERT":
 			Wrap(ParseInsert, r, dxf)
+        case "ATTRIB":
+            Wrap(ParseAttrib, r, dxf)
 		default:
 			log.Println("[ENTITIES] ", Line, ": ", r.DxfLine().Line)
 			return NewParseError("unknown entity")
@@ -160,35 +162,26 @@ func ParsePoint(r *Reader, dxf *drawing.Dxf) error {
 func ParseInsert(r *Reader, dxf *drawing.Dxf) error {
 	insert := entity.NewMText() // TODO: insert
 
-	if ParseAcDbEntity(r, insert.Entity) != nil || r.AssertNextLine("AcDbBlockReference") != nil {
+	if ParseAcDbEntity(r, insert.Entity) != nil || 
+        ParseAcDbBlockReference(r, insert) != nil {
 		return r.Err()
 	}
 
-	coord3D := [3]float64{0.0, 0.0, 0.0}
-
-	// Variable attributes-follow flag default = 0
-	r.ConsumeStrIf(66, nil)
-	r.ConsumeStr(nil)                // Block name
-	r.ConsumeCoordinates(coord3D[:]) // insertion point
-
-	r.ConsumeFloatIf(41, "x scale factor default 1", nil)
-	r.ConsumeFloatIf(42, "x scale factor default 1", nil)
-	r.ConsumeFloatIf(43, "x scale factor default 1", nil)
-
-	r.ConsumeFloatIf(50, "rotation angle default 0", nil)
-	r.ConsumeFloatIf(70, "column count default 1", nil)
-	r.ConsumeFloatIf(71, "row count default 1", nil)
-
-	r.ConsumeFloatIf(44, "column spacing default 0", nil)
-	r.ConsumeFloatIf(45, "row spacing default 0", nil)
-
-	// optional default = 0, 0, 1
-	// XYZ extrusion direction
-	r.ConsumeCoordinatesIf(210, coord3D[:])
-
-	// TODO: parse insert
-	// attrib =>  987212
-
 	_ = dxf
 	return nil
+}
+
+// TODO: implement attrib
+func ParseAttrib(r *Reader, dxf *drawing.Dxf) error {
+    attrib := entity.NewMText() 
+
+    if ParseAcDbEntity(r, attrib.Entity) != nil ||
+        ParseAcDbText(r, attrib)         != nil ||
+        ParseAcDbAttribute(r, attrib)    != nil {
+        log.Println(r.Err())
+        return r.Err()
+    }
+
+    _ = dxf
+    return r.Err()
 }
