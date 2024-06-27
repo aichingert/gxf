@@ -280,6 +280,7 @@ func (r *Reader) PeekCode() (uint16, error) {
 	code, err := strconv.ParseUint(strings.TrimSpace(string(line)), DEC_RADIX, 16)
 
 	if err != nil {
+        fmt.Println(Line)
 		fmt.Println("[READER] unable to convert code to int ", err)
 		return 0, err
 	}

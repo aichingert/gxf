@@ -167,7 +167,10 @@ func ParseInsert(r *Reader, dxf *drawing.Dxf) error {
 		return r.Err()
 	}
 
-    for r.ScanDxfLine() {
+    hack, err := r.PeekCode()
+    if err != nil { return err }
+
+    for hack < 1000 && r.ScanDxfLine() {
         switch r.DxfLine().Line {
         case "ATTRIB":
             Wrap(ParseAttrib, r, dxf)
@@ -181,28 +184,74 @@ func ParseInsert(r *Reader, dxf *drawing.Dxf) error {
             Wrap(ParseLine, r, dxf)
         case "LWPOLYLINE":
             Wrap(ParsePolyline, r, dxf)
+        case "ARC":
+            Wrap(ParseArc, r, dxf)
         case "CIRCLE":
             Wrap(ParseCircle, r, dxf)
+        case "REGION":
+            Wrap(ParseRegion, r, dxf)
         case "INSERT":
             Wrap(ParseInsert, r, dxf)
         case "ENDBLK":
             ParseAcDbEntity(r, insert.Entity) // insert does not end with seqend
-            return r.Err()
-        case "AcDbBlockEnd":
-            return r.Err()
         case "SEQEND":
             ParseAcDbEntity(r, insert.Entity) // marks end of insert 
-            return r.Err()
         default:
             log.Fatal("[INSERT(", Line, ")] invalid subclass marker ", r.DxfLine().Line)
         }
 
-        if WrappedErr != nil {
+        if WrappedErr != nil || r.DxfLine().Line == "SEQEND" || r.DxfLine().Line == "ENDBLK"{
             return WrappedErr
         }
+
+        r.ConsumeStrIf(1001, nil)
+        r.ConsumeNumberIf(1070, DEC_RADIX, "not sure", nil)
+        r.ConsumeNumberIf(1071, DEC_RADIX, "not sure", nil)
+
+        r.ConsumeStrIf(1000, nil)
+        r.ConsumeStrIf(1000, nil)
+
+        r.ConsumeNumberIf(1005, HEX_RADIX, "not sure", nil)
+        r.ConsumeStrIf(1001, nil)
+        r.ConsumeNumberIf(1070, DEC_RADIX, "not sure", nil)
+        r.ConsumeStrIf(1000, nil)
+        r.ConsumeStrIf(1002, nil)
+        r.ConsumeNumberIf(1070, DEC_RADIX, "not sure", nil)
+        r.ConsumeNumberIf(1070, DEC_RADIX, "not sure", nil)
+        r.ConsumeStrIf(1002, nil) 
+
+        r.ConsumeStrIf(1001, nil)
+        r.ConsumeNumberIf(1010, DEC_RADIX, "not sure", nil)
+        r.ConsumeNumberIf(1020, DEC_RADIX, "not sure", nil)
+        r.ConsumeNumberIf(1030, DEC_RADIX, "not sure", nil)
+
+        r.ConsumeStrIf(1001, nil)
+        r.ConsumeNumberIf(1070, DEC_RADIX, "not sure", nil)
+        r.ConsumeNumberIf(1071, DEC_RADIX, "not sure", nil)
+        r.ConsumeNumberIf(1005, HEX_RADIX, "not sure", nil)
+
+        r.ConsumeStrIf(1001, nil)
+        r.ConsumeNumberIf(1010, DEC_RADIX, "not sure", nil)
+        r.ConsumeNumberIf(1020, DEC_RADIX, "not sure", nil)
+        r.ConsumeNumberIf(1030, DEC_RADIX, "not sure", nil)
     }
 
 	return r.Err()
+}
+
+func ParseRegion(r *Reader, dxf *drawing.Dxf) error {
+    throwAway := entity.NewMText()
+
+    if ParseAcDbEntity(r, throwAway.Entity) != nil ||
+        r.AssertNextLine("AcDbModelerGeometry") != nil {
+        return r.Err()
+    }
+
+    r.ConsumeNumberIf(290, DEC_RADIX, "not documented", nil)
+    r.ConsumeStrIf(2, nil)
+
+    _ = dxf
+    return r.Err()
 }
 
 // TODO: implement attrib
