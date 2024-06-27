@@ -17,6 +17,12 @@ func ParseAcDbEntity(r *Reader, entity entity.Entity) error {
 		r.ConsumeStr(nil) // 102 }
 	}
 
+    if r.ConsumeStrIf(102, nil) { // consumeIf => ex. {ACAD_XDICTIONARY
+		r.ConsumeStr(nil) // 360 => hard owner
+        for r.ConsumeNumberIf(330, HEX_RADIX, "soft owner", nil) {}
+		r.ConsumeStr(nil) // 102 }
+	}
+
 	r.ConsumeNumber(330, HEX_RADIX, "owner ptr", entity.GetOwner())
 
 	if r.AssertNextLine("AcDbEntity") != nil {
@@ -29,6 +35,11 @@ func ParseAcDbEntity(r *Reader, entity entity.Entity) error {
 	r.ConsumeStr(entity.GetLayerName())
 	r.ConsumeNumberIf(60, DEC_RADIX, "object visibility", nil)
 
+    r.ConsumeStrIf(6, nil) // ByBlock
+    r.ConsumeNumberIf(62, DEC_RADIX, "not documented", nil)
+    r.ConsumeFloatIf(48, "not documented", nil)
+    r.ConsumeNumberIf(370, DEC_RADIX, "not documented", nil)
+
 	return r.Err()
 }
 
@@ -36,9 +47,23 @@ func ParseAcDbLine(r *Reader, line *entity.Line) error {
 	if r.AssertNextLine("AcDbLine") != nil {
 		return r.Err()
 	}
-
+ 
 	r.ConsumeCoordinates(line.Src[:])
 	r.ConsumeCoordinates(line.Dst[:])
+
+    r.ConsumeStrIf(1001, nil) // AcadAnnotative
+    r.ConsumeStrIf(1000, nil) // AnnotativeData
+    r.ConsumeStrIf(1002, nil) // {
+    r.ConsumeNumberIf(1070, DEC_RADIX, "not sure", nil)
+    r.ConsumeNumberIf(1070, DEC_RADIX, "not sure", nil)
+    r.ConsumeNumberIf(1002, DEC_RADIX, "not sure", nil)
+    // }
+
+    r.ConsumeStrIf(1001, nil) // AcDbBlockRepETag
+    r.ConsumeNumberIf(1070, DEC_RADIX, "not sure", nil)
+    r.ConsumeNumberIf(1071, DEC_RADIX, "not sure", nil)
+    r.ConsumeNumberIf(1005, DEC_RADIX, "not sure", nil)
+
 
 	return r.Err()
 }
@@ -61,6 +86,7 @@ func ParseAcDbPolyline(r *Reader, polyline *entity.Polyline) error {
 
 		r.ConsumeCoordinates(coords2D[:])
 		r.ConsumeFloatIf(42, "expected bulge", &bulge)
+		r.ConsumeNumberIf(91, DEC_RADIX, "vertex identifier", nil)
 
 		if r.Err() != nil {
 			return r.Err()
@@ -68,11 +94,19 @@ func ParseAcDbPolyline(r *Reader, polyline *entity.Polyline) error {
 
 		polyline.PolylineAppendCoordinate(coords2D, bulge)
 	}
+    
+    r.ConsumeStrIf(1001, nil) // AcadAnnotative
+    r.ConsumeStrIf(1000, nil) // AnnotativeData
+    r.ConsumeStrIf(1002, nil) // {
+    r.ConsumeNumberIf(1070, DEC_RADIX, "not sure", nil)
+    r.ConsumeNumberIf(1070, DEC_RADIX, "not sure", nil)
+    r.ConsumeNumberIf(1002, DEC_RADIX, "not sure", nil)
+    // }
 
-    r.ConsumeStrIf(1001, nil) 
-    r.ConsumeStrIf(1070, nil) 
-    r.ConsumeStrIf(1071, nil) 
-    r.ConsumeStrIf(1005, nil) 
+    r.ConsumeStrIf(1001, nil) // AcDbBlockRepETag
+    r.ConsumeNumberIf(1070, DEC_RADIX, "not sure", nil)
+    r.ConsumeNumberIf(1071, DEC_RADIX, "not sure", nil)
+    r.ConsumeNumberIf(1005, DEC_RADIX, "not sure", nil)
 
 	return r.Err()
 }
@@ -182,11 +216,35 @@ func ParseAcDbMText(r *Reader, mText *entity.MText) error {
 		}
 	}
 
-	r.ConsumeStr(&mText.TextStyle)
-	r.ConsumeCoordinates(mText.Vector[:])
+	r.ConsumeStrIf(7, &mText.TextStyle)
+	r.ConsumeCoordinatesIf(11, mText.Vector[:])
 
 	r.ConsumeNumber(73, DEC_RADIX, "line spacing", &mText.LineSpacing)
 	r.ConsumeFloat(44, "line spacing factor", nil)
+
+    // Embedded Object
+    if r.ConsumeStrIf(101, nil) { 
+        r.ConsumeNumber(70, DEC_RADIX, "not documented", nil)
+        coords3D := [3]float64{0.0, 0.0, 0.0}
+        r.ConsumeCoordinates(coords3D[:])
+        r.ConsumeCoordinates(coords3D[:])
+
+        r.ConsumeFloat(40, "not documented", nil)
+        r.ConsumeFloat(41, "not documented", nil)
+        r.ConsumeFloat(42, "not documented", nil)
+        r.ConsumeFloat(43, "not documented", nil)
+
+        r.ConsumeNumber(71, DEC_RADIX, "not documented", nil)
+        r.ConsumeNumber(72, DEC_RADIX, "not documented", nil)
+
+        r.ConsumeFloat(44, "not documented", nil)
+        r.ConsumeFloat(45, "not documented", nil)
+
+        r.ConsumeNumber(73, DEC_RADIX, "not documented", nil)
+        r.ConsumeNumber(74, DEC_RADIX, "not documented", nil)
+
+        r.ConsumeFloat(46, "not documented", nil)
+    }
 
 	return r.Err()
 }
@@ -245,8 +303,12 @@ func ParseAcDbHatch(r *Reader, hatch *entity.MText) error {
                     r.ConsumeCoordinates(coord2D[:])
                     r.ConsumeCoordinates(coord2D[:])
                 case 2: // Circular arc
-                    // TODO
-                    log.Fatal("hatch circular arc")
+                    r.ConsumeCoordinates(coord2D[:])
+                    r.ConsumeFloat(40, "radius", nil)
+
+                    r.ConsumeFloat(50, "start angle", nil)
+                    r.ConsumeFloat(51, "end angle", nil)
+                    r.ConsumeNumber(73, DEC_RADIX, "is counterclockwise", nil)
                 case 3: // Elliptic arc
                     log.Fatal("hatch elliptic arc")
                 case 4: // Spine
@@ -303,11 +365,29 @@ func ParseAcDbHatch(r *Reader, hatch *entity.MText) error {
     r.ConsumeNumberIf(1070, DEC_RADIX, "not sure", nil)
     r.ConsumeStrIf(1001, nil)
     r.ConsumeNumberIf(1070, DEC_RADIX, "not sure", nil)
+    r.ConsumeNumberIf(1071, DEC_RADIX, "not sure", nil)
+
+    r.ConsumeStrIf(1001, nil)
+    r.ConsumeNumberIf(1070, DEC_RADIX, "not sure", nil)
+    r.ConsumeStrIf(1001, nil)
+    r.ConsumeNumberIf(1070, DEC_RADIX, "not sure", nil)
+    r.ConsumeNumberIf(1071, DEC_RADIX, "not sure", nil)
+
+
+
+    r.ConsumeStrIf(1000, nil)
+    r.ConsumeStrIf(1000, nil)
 
     r.ConsumeStrIf(1001, nil) // acad
     r.ConsumeFloatIf(1010, "not sure", nil)
     r.ConsumeFloatIf(1020, "not sure", nil)
     r.ConsumeFloatIf(1030, "not sure", nil)
+
+    r.ConsumeStrIf(1001, nil)
+    r.ConsumeNumberIf(1070, DEC_RADIX, "not sure", nil)
+    r.ConsumeNumberIf(1071, DEC_RADIX, "not sure", nil)
+    r.ConsumeNumberIf(1005, HEX_RADIX, "not sure", nil)
+
 
 	_ = hatch
 	return r.Err()
@@ -383,6 +463,20 @@ func ParseAcDbBlockReference(r *Reader, reference *entity.MText) error {
 	// optional default = 0, 0, 1
 	// XYZ extrusion direction
 	r.ConsumeCoordinatesIf(210, coord3D[:])
+
+    r.ConsumeStrIf(1001, nil) // AcadAnnotative
+    r.ConsumeStrIf(1000, nil) // AnnotativeData
+    r.ConsumeStrIf(1002, nil) // {
+    r.ConsumeNumberIf(1070, DEC_RADIX, "not sure", nil)
+    r.ConsumeNumberIf(1070, DEC_RADIX, "not sure", nil)
+    r.ConsumeNumberIf(1002, DEC_RADIX, "not sure", nil)
+    // }
+
+    r.ConsumeStrIf(1001, nil) // AcDbBlockRepETag
+    r.ConsumeNumberIf(1070, DEC_RADIX, "not sure", nil)
+    r.ConsumeNumberIf(1071, DEC_RADIX, "not sure", nil)
+    r.ConsumeNumberIf(1005, DEC_RADIX, "not sure", nil)
+
 
     _ = reference
     return r.Err()

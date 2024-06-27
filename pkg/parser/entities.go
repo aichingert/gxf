@@ -175,14 +175,20 @@ func ParseInsert(r *Reader, dxf *drawing.Dxf) error {
             Wrap(ParseAttDef, r, dxf)
         case "HATCH":
             Wrap(ParseHatch, r, dxf)
-        case "LWPOLYLINE":
-            Wrap(ParsePolyline, r, dxf)
+        case "MTEXT":
+            Wrap(ParseMText, r, dxf)
         case "LINE":
             Wrap(ParseLine, r, dxf)
+        case "LWPOLYLINE":
+            Wrap(ParsePolyline, r, dxf)
         case "CIRCLE":
             Wrap(ParseCircle, r, dxf)
+        case "INSERT":
+            Wrap(ParseInsert, r, dxf)
         case "ENDBLK":
             ParseAcDbEntity(r, insert.Entity) // insert does not end with seqend
+            return r.Err()
+        case "AcDbBlockEnd":
             return r.Err()
         case "SEQEND":
             ParseAcDbEntity(r, insert.Entity) // marks end of insert 

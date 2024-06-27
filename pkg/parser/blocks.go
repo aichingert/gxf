@@ -40,6 +40,8 @@ func ParseBlock(r *Reader, dxf *drawing.Dxf) error {
             Wrap(ParseLine, r, dxf)
         case "LWPOLYLINE":
             Wrap(ParsePolyline, r, dxf)
+        case "MTEXT":
+            Wrap(ParseMText, r, dxf)
         case "CIRCLE":
             Wrap(ParseCircle, r, dxf)
         case "HATCH":
@@ -48,6 +50,8 @@ func ParseBlock(r *Reader, dxf *drawing.Dxf) error {
             ParseAcDbEntity(r, block.Entity)
         case "ATTDEF":
             Wrap(ParseAttDef, r, dxf)
+        case "BLOCK":
+            Wrap(ParseBlock, r, dxf)
         case "AcDbBlockEnd":
             dxf.Blocks = append(dxf.Blocks, block)
             return r.Err()
