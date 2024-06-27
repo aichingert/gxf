@@ -105,6 +105,10 @@ func (r *Reader) ConsumeNumber(code uint16, radix int, description string, n *ui
 
 	if n != nil {
 		*n, r.err = strconv.ParseUint(strings.TrimSpace(line.Line), radix, 64)
+
+        if r.err != nil {
+            r.err = NewParseError(fmt.Sprintf("%d", Line))
+        }
 	}
 }
 

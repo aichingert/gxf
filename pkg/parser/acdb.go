@@ -4,6 +4,7 @@ import (
 	"log"
 
 	"github.com/aichingert/dxf/pkg/entity"
+	"github.com/aichingert/dxf/pkg/blocks"
 )
 
 func ParseAcDbEntity(r *Reader, entity entity.Entity) error {
@@ -12,6 +13,7 @@ func ParseAcDbEntity(r *Reader, entity entity.Entity) error {
 	// TODO: set hard owner/handle to owner dictionary
 	if r.ConsumeStrIf(102, nil) { // consumeIf => ex. {ACAD_XDICTIONARY
 		r.ConsumeStr(nil) // 360 => hard owner
+        for r.ConsumeNumberIf(330, HEX_RADIX, "soft owner", nil) {}
 		r.ConsumeStr(nil) // 102 }
 	}
 
@@ -67,6 +69,11 @@ func ParseAcDbPolyline(r *Reader, polyline *entity.Polyline) error {
 		polyline.PolylineAppendCoordinate(coords2D, bulge)
 	}
 
+    r.ConsumeStrIf(1001, nil) 
+    r.ConsumeStrIf(1070, nil) 
+    r.ConsumeStrIf(1071, nil) 
+    r.ConsumeStrIf(1005, nil) 
+
 	return r.Err()
 }
 
@@ -77,6 +84,11 @@ func ParseAcDbCircle(r *Reader, circle *entity.Circle) error {
 
 	r.ConsumeCoordinates(circle.Coordinates[:])
 	r.ConsumeFloat(40, "expected radius", &circle.Radius)
+
+    r.ConsumeStrIf(1001, nil)
+    r.ConsumeNumberIf(1070, DEC_RADIX, "not sure", nil)
+    r.ConsumeNumberIf(1071, DEC_RADIX, "not sure", nil)
+    r.ConsumeNumberIf(1005, DEC_RADIX, "not sure", nil)
 
 	return r.Err()
 }
@@ -196,61 +208,106 @@ func ParseAcDbHatch(r *Reader, hatch *entity.MText) error {
 	r.ConsumeNumber(71, DEC_RADIX, "associativity flag", nil)
 
 	// number of boundary paths?
-	r.ConsumeNumber(91, DEC_RADIX, "boundary paths", nil)
+    boundaryPaths := uint64(0)
+	r.ConsumeNumber(91, DEC_RADIX, "boundary paths", &boundaryPaths)
 
-	pathTypeFlag := uint64(0)
-	// [92] Boundary path type flag (bit coded):
-	// 0 = Default | 1 = External | 2  = Polyline
-	// 4 = Derived | 8 = Textbox  | 16 = Outermost
-	r.ConsumeNumber(92, DEC_RADIX, "boundary path type flag", &pathTypeFlag)
+    for i := uint64(0); i < boundaryPaths; i++ {
+        pathTypeFlag := uint64(0)
+        // [92] Boundary path type flag (bit coded):
+        // 0 = Default | 1 = External | 2  = Polyline
+        // 4 = Derived | 8 = Textbox  | 16 = Outermost
+        r.ConsumeNumber(92, DEC_RADIX, "boundary path type flag", &pathTypeFlag)
 
-	if pathTypeFlag&2 == 2 {
-		r.ConsumeNumber(72, DEC_RADIX, "has bulge flag", nil)
-		r.ConsumeNumber(73, DEC_RADIX, "is closed flag", nil)
+        if pathTypeFlag&2 == 2 {
 
-		vertices := uint64(0)
-		coord2D := [2]float64{0.0, 0.0}
+            r.ConsumeNumber(72, DEC_RADIX, "has bulge flag", nil)
+            r.ConsumeNumber(73, DEC_RADIX, "is closed flag", nil)
 
-		r.ConsumeNumber(93, DEC_RADIX, "number of polyline vertices", &vertices)
+            vertices := uint64(0)
+            r.ConsumeNumber(93, DEC_RADIX, "number of polyline vertices", &vertices)
 
-		for vertex := uint64(0); vertex < vertices; vertex++ {
-			r.ConsumeCoordinates(coord2D[:])
-			r.ConsumeFloatIf(42, "expected bulge", nil)
-		}
-	} else {
-		edges, edgeType, coord2D := uint64(0), uint64(0), [2]float64{0.0, 0.0}
+            coord2D := [2]float64{0.0, 0.0}
 
-		r.ConsumeNumber(93, DEC_RADIX, "number of edges in this boundary path", &edges)
-		r.ConsumeNumber(72, DEC_RADIX, "edge type data", &edgeType)
+            for vertex := uint64(0); vertex < vertices; vertex++ {
+                r.ConsumeCoordinates(coord2D[:])
+                r.ConsumeFloatIf(42, "expected bulge", nil)
+            }
+        } else {
+            edges, edgeType, coord2D := uint64(0), uint64(0), [2]float64{0.0, 0.0}
 
-		switch edgeType {
-		case 1: // Line
-			for edge := uint64(0); edge < edges; edge++ {
-				r.ConsumeCoordinates(coord2D[:])
-			}
-		case 2: // Circular arc
-			// TODO
-			log.Fatal("hatch circular arc")
-		case 3: // Elliptic arc
-			log.Fatal("hatch elliptic arc")
-		case 4: // Spine
-			log.Fatal("hatch spine")
-		default:
-			log.Println("[AcDbHatch(", Line, ")] invalid edge type data", edgeType)
-			return NewParseError("invalid edge type data")
-		}
-	}
+            r.ConsumeNumber(93, DEC_RADIX, "number of edges in this boundary path", &edges)
 
-	boundaryObjectSize, boundaryObjectRef := uint64(0), uint64(0)
+            for edge := uint64(0); edge < edges; edge++ {
+                r.ConsumeNumber(72, DEC_RADIX, "edge type data", &edgeType)
 
-	r.ConsumeNumber(97, DEC_RADIX, "number of source boundary objects", &boundaryObjectSize)
-	for i := uint64(0); i < boundaryObjectSize; i++ {
-		r.ConsumeNumber(330, DEC_RADIX, "reference to source object", &boundaryObjectRef)
-	}
+                switch edgeType {
+                case 1: // Line
+                    r.ConsumeCoordinates(coord2D[:])
+                    r.ConsumeCoordinates(coord2D[:])
+                case 2: // Circular arc
+                    // TODO
+                    log.Fatal("hatch circular arc")
+                case 3: // Elliptic arc
+                    log.Fatal("hatch elliptic arc")
+                case 4: // Spine
+                    log.Fatal("hatch spine")
+                default:
+                    log.Println("[AcDbHatch(", Line, ")] invalid edge type data", edgeType)
+                    return NewParseError("invalid edge type data")
+                }
+            }
+        }
 
-	r.ConsumeNumber(75, DEC_RADIX, "hatch style", nil)
-	r.ConsumeNumber(76, DEC_RADIX, "hatch pattern type", nil)
-	r.ConsumeNumber(98, DEC_RADIX, "number of seed points", nil)
+        boundaryObjectSize, boundaryObjectRef := uint64(0), uint64(0)
+
+        r.ConsumeNumber(97, DEC_RADIX, "number of source boundary objects", &boundaryObjectSize)
+        for i := uint64(0); i < boundaryObjectSize; i++ {
+            r.ConsumeNumber(330, HEX_RADIX, "reference to source object", &boundaryObjectRef)
+        }
+    }
+
+    r.ConsumeNumber(75, DEC_RADIX, "hatch style", nil)
+    r.ConsumeNumber(76, DEC_RADIX, "hatch pattern type", nil)
+    r.ConsumeFloatIf(47, "pixel size used to determine density to perform ray casting", nil)
+
+    seedPoints := uint64(0)
+    r.ConsumeNumber(98, DEC_RADIX, "number of seed points", &seedPoints)
+
+    coord2D := [2]float64{0.0, 0.0}
+
+    for seedPoint := uint64(0); seedPoint < seedPoints; seedPoint++ {
+        r.ConsumeCoordinates(coord2D[:])
+    }
+
+    r.ConsumeNumberIf(450, DEC_RADIX, "indicates solid hatch or gradient", nil)
+    r.ConsumeNumberIf(451, DEC_RADIX, "zero is reserved for future use", nil)
+    
+    // default 0,0
+    r.ConsumeFloatIf(460, "rotation angle in radians for gradients", nil)
+    r.ConsumeFloatIf(461, "gradient definition", nil)
+    r.ConsumeNumberIf(452, DEC_RADIX, "records how colors were defined", nil)
+    r.ConsumeFloatIf(462, "color tint value used by dialog", nil)
+
+    nColors := uint64(0)
+    r.ConsumeNumberIf(453, DEC_RADIX, "number of colors", &nColors)
+
+    for color := uint64(0); color < nColors; color++ {
+        r.ConsumeFloatIf(463, "reserved for future use", nil)
+        r.ConsumeNumberIf(63, DEC_RADIX, "not documented", nil)
+        r.ConsumeNumberIf(421, DEC_RADIX, "not documented", nil)
+    }
+
+    r.ConsumeStrIf(470, nil) // string default = LINEAR
+
+    r.ConsumeStrIf(1001, nil)
+    r.ConsumeNumberIf(1070, DEC_RADIX, "not sure", nil)
+    r.ConsumeStrIf(1001, nil)
+    r.ConsumeNumberIf(1070, DEC_RADIX, "not sure", nil)
+
+    r.ConsumeStrIf(1001, nil) // acad
+    r.ConsumeFloatIf(1010, "not sure", nil)
+    r.ConsumeFloatIf(1020, "not sure", nil)
+    r.ConsumeFloatIf(1030, "not sure", nil)
 
 	_ = hatch
 	return r.Err()
@@ -331,6 +388,23 @@ func ParseAcDbBlockReference(r *Reader, reference *entity.MText) error {
     return r.Err()
 }
 
+func ParseAcDbBlockBegin(r *Reader, block *blocks.Block) error {
+    if r.AssertNextLine("AcDbBlockBegin") != nil {
+        return r.Err()
+    }
+
+    r.ConsumeStr(nil) // [2] block name
+    r.ConsumeNumber(70, DEC_RADIX, "block-type flag", nil)
+
+    coords3D := [3]float64{0.0, 0.0, 0.0}
+    r.ConsumeCoordinates(coords3D[:])
+
+    r.ConsumeStr(nil) // [3] block name
+    r.ConsumeStr(nil) // [1] Xref path name
+
+    return r.Err()
+}
+
 // TODO: implement attribute
 func ParseAcDbAttribute(r *Reader, attribute *entity.MText) error {
     if r.AssertNextLine("AcDbAttribute") != nil {
@@ -356,6 +430,41 @@ func ParseAcDbAttribute(r *Reader, attribute *entity.MText) error {
 
     // TODO: maybe continues?
     // not documented
+
+    r.ConsumeStrIf(1001, nil) // AcadAnnotative
+    r.ConsumeStrIf(1000, nil) // AnnotativeData
+    r.ConsumeStrIf(1002, nil) // {
+    r.ConsumeNumberIf(1070, DEC_RADIX, "not sure", nil)
+    r.ConsumeNumberIf(1070, DEC_RADIX, "not sure", nil)
+    r.ConsumeNumberIf(1002, DEC_RADIX, "not sure", nil)
+    // }
+
+    r.ConsumeStrIf(1001, nil) // AcDbBlockRepETag
+    r.ConsumeNumberIf(1070, DEC_RADIX, "not sure", nil)
+    r.ConsumeNumberIf(1071, DEC_RADIX, "not sure", nil)
+    r.ConsumeNumberIf(1005, DEC_RADIX, "not sure", nil)
+
+    return r.Err()
+}
+
+func ParseAcDbAttributeDefinition(r *Reader, attdef *entity.MText) error {
+    if r.AssertNextLine("AcDbAttributeDefinition") != nil {
+        return r.Err()
+    }
+
+    r.ConsumeStr(nil) // [3] prompt string
+    r.ConsumeStr(nil) // [2] tag string
+    r.ConsumeNumber(70, DEC_RADIX, "attribute flags", nil)
+    r.ConsumeFloatIf(73, "field length", nil)
+    r.ConsumeFloatIf(74, "vertical text justification type default 0", nil)
+
+    r.ConsumeNumber(280, DEC_RADIX, "lock position flag", nil) 
+
+    r.ConsumeNumberIf(71, DEC_RADIX, "not documented", nil)
+    r.ConsumeNumberIf(72, DEC_RADIX, "not documented", nil)
+    coords3D := [3]float64{0.0, 0.0, 0.0}
+
+    r.ConsumeCoordinatesIf(11, coords3D[:])
 
     r.ConsumeStrIf(1001, nil) // AcadAnnotative
     r.ConsumeStrIf(1000, nil) // AnnotativeData

@@ -30,10 +30,6 @@ func ParseEntities(r *Reader, dxf *drawing.Dxf) error {
 			Wrap(ParsePoint, r, dxf)
 		case "INSERT":
 			Wrap(ParseInsert, r, dxf)
-        case "ATTRIB":
-            Wrap(ParseAttrib, r, dxf)
-        case "SEQEND":
-            Wrap(ParseSeqend, r, dxf)
         case "ENDSEC":
             return r.Err()
 		default:
@@ -171,8 +167,36 @@ func ParseInsert(r *Reader, dxf *drawing.Dxf) error {
 		return r.Err()
 	}
 
-	_ = dxf
-	return nil
+    for r.ScanDxfLine() {
+        switch r.DxfLine().Line {
+        case "ATTRIB":
+            Wrap(ParseAttrib, r, dxf)
+        case "ATTDEF":
+            Wrap(ParseAttDef, r, dxf)
+        case "HATCH":
+            Wrap(ParseHatch, r, dxf)
+        case "LWPOLYLINE":
+            Wrap(ParsePolyline, r, dxf)
+        case "LINE":
+            Wrap(ParseLine, r, dxf)
+        case "CIRCLE":
+            Wrap(ParseCircle, r, dxf)
+        case "ENDBLK":
+            ParseAcDbEntity(r, insert.Entity) // insert does not end with seqend
+            return r.Err()
+        case "SEQEND":
+            ParseAcDbEntity(r, insert.Entity) // marks end of insert 
+            return r.Err()
+        default:
+            log.Fatal("[INSERT(", Line, ")] invalid subclass marker ", r.DxfLine().Line)
+        }
+
+        if WrappedErr != nil {
+            return WrappedErr
+        }
+    }
+
+	return r.Err()
 }
 
 // TODO: implement attrib
@@ -189,14 +213,16 @@ func ParseAttrib(r *Reader, dxf *drawing.Dxf) error {
     return r.Err()
 }
 
-// TODO: implement seqend
-func ParseSeqend(r *Reader, dxf *drawing.Dxf) error {
-    attrib := entity.NewMText() 
+// TODO: implement type
+func ParseAttDef(r *Reader, attdef *drawing.Dxf) error {
+    // TODO: include this in attdef type
+    text := entity.NewMText() // this is text not mtext
 
-    if ParseAcDbEntity(r, attrib.Entity) != nil {
+    if ParseAcDbEntity(r, text.Entity) != nil ||
+        ParseAcDbText(r, text) != nil || 
+        ParseAcDbAttributeDefinition(r, text) != nil {
         return r.Err()
     }
 
-    _ = dxf
     return r.Err()
 }

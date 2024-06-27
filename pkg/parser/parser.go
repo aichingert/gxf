@@ -44,6 +44,8 @@ func FromFile(filename string) (*drawing.Dxf, error) {
 			switch section.Line {
 			case "HEADER":
 				Wrap(ParseHeader, reader, dxf)
+			case "BLOCKS":
+                Wrap(ParseBlocks, reader, dxf)
 			case "ENTITIES":
 				Wrap(ParseEntities, reader, dxf)
 			default:
