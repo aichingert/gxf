@@ -10,11 +10,7 @@ type Arc struct {
 
 func NewArc() *Arc {
 	return &Arc{
-		Entity: &EntityData{
-			Handle:    0,
-			Owner:     0,
-			LayerName: "",
-		},
+		Entity: NewEntityData(),
 		Circle:     NewCircle(),
 		StartAngle: 0.0,
 		EndAngle:   0.0,

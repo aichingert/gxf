@@ -9,11 +9,7 @@ type Line struct {
 
 func NewLine() *Line {
 	return &Line{
-		Entity: &EntityData{
-			Handle:    0,
-			Owner:     0,
-			LayerName: "",
-		},
+		Entity: NewEntityData(),
 		Src: [3]float64{0.0, 0.0, 0.0},
 		Dst: [3]float64{0.0, 0.0, 0.0},
 	}

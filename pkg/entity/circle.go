@@ -9,11 +9,7 @@ type Circle struct {
 
 func NewCircle() *Circle {
 	return &Circle{
-		Entity: &EntityData{
-			Handle:    0,
-			Owner:     0,
-			LayerName: "",
-		},
+		Entity: NewEntityData(),
 		Radius:      0.0,
 		Coordinates: [3]float64{0.0, 0.0, 0.0},
 	}

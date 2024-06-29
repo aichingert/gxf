@@ -36,7 +36,7 @@ func ParseAcDbEntity(r *Reader, entity entity.Entity) error {
     r.ConsumeStrIf(6, nil) // ByBlock
     r.ConsumeNumberIf(62, DEC_RADIX, "color number (present if not bylayer)", nil)
     r.ConsumeFloatIf(48, "linetype scale", nil)
-	r.ConsumeNumberIf(60, DEC_RADIX, "object visibility", nil)
+	r.ConsumeNumberIf(60, DEC_RADIX, "object visibility", entity.GetVisibility())
 
     r.ConsumeNumberIf(420, DEC_RADIX, "24-bit color value", nil)
 	r.ConsumeNumberIf(440, DEC_RADIX, "transparency value", nil)
@@ -93,12 +93,7 @@ func ParseAcDbCircle(r *Reader, circle *entity.Circle) error {
 
 	r.ConsumeCoordinates(circle.Coordinates[:])
 	r.ConsumeFloat(40, "expected radius", &circle.Radius)
-
-    r.ConsumeStrIf(1001, nil)
-    r.ConsumeNumberIf(1070, DEC_RADIX, "not sure", nil)
-    r.ConsumeNumberIf(1071, DEC_RADIX, "not sure", nil)
-    r.ConsumeNumberIf(1005, DEC_RADIX, "not sure", nil)
-
+    
 	return r.Err()
 }
 

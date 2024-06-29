@@ -5,10 +5,10 @@ type Polyline struct {
 
 	Flag        uint64
 	Vertices    uint64
-	Coordinates []line
+	Coordinates []PLine
 }
 
-type line struct {
+type PLine struct {
 	X     float64
 	Y     float64
 	Bulge float64
@@ -16,19 +16,15 @@ type line struct {
 
 func NewPolyline() *Polyline {
 	return &Polyline{
-		Entity: &EntityData{
-			Handle:    0,
-			Owner:     0,
-			LayerName: "",
-		},
-		Flag:        0,
-		Vertices:    0,
-		Coordinates: nil,
+		Entity:     NewEntityData(),
+		Flag:       0,
+		Vertices:   0,
+		Coordinates:nil,
 	}
 }
 
 func (p *Polyline) PolylineAppendCoordinate(coords2D [2]float64, bulge float64) {
-	line := line{
+	line := PLine{
 		X:     coords2D[0],
 		Y:     coords2D[1],
 		Bulge: bulge,

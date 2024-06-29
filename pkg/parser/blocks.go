@@ -9,7 +9,6 @@ import (
 )
 
 func ParseBlocks(r *Reader, dxf *drawing.Dxf) error {
-
     for r.ScanDxfLine() {
         switch r.DxfLine().Line {
         case "BLOCK":
