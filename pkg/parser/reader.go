@@ -10,9 +10,9 @@ import (
 )
 
 const (
-    DXF_CODE_LINE_SIZE_IN_BYTES = 4
-    DEC_RADIX = 10
-    HEX_RADIX = 16
+	DXF_CODE_LINE_SIZE_IN_BYTES = 4
+	DEC_RADIX                   = 10
+	HEX_RADIX                   = 16
 )
 
 type Reader struct {
@@ -106,9 +106,9 @@ func (r *Reader) ConsumeNumber(code uint16, radix int, description string, n *ui
 	if n != nil {
 		*n, r.err = strconv.ParseUint(strings.TrimSpace(line.Line), radix, 64)
 
-        if r.err != nil {
-            r.err = NewParseError(fmt.Sprintf("%d", Line))
-        }
+		if r.err != nil {
+			r.err = NewParseError(fmt.Sprintf("%d", Line))
+		}
 	}
 }
 
@@ -147,7 +147,7 @@ func (r *Reader) ConsumeFloat(code uint16, description string, f *float64) {
 
 	if r.err != nil {
 		r.err = NewParseError(description)
-		fmt.Println("[READER] ConsumeFloat expected number got ", err)
+		fmt.Println("[READER] ConsumeFloat expected number got ", line.Line)
 	}
 }
 
@@ -280,7 +280,7 @@ func (r *Reader) PeekCode() (uint16, error) {
 	code, err := strconv.ParseUint(strings.TrimSpace(string(line)), DEC_RADIX, 16)
 
 	if err != nil {
-        fmt.Println(Line)
+		fmt.Println(Line)
 		fmt.Println("[READER] unable to convert code to int ", err)
 		return 0, err
 	}
@@ -291,29 +291,29 @@ func (r *Reader) PeekCode() (uint16, error) {
 // TODO: this is bad change this
 // not sure but to be refactored
 func (r *Reader) PeekLine() (string, error) {
-    if r.err != nil {
-        return "", r.err
-    }
+	if r.err != nil {
+		return "", r.err
+	}
 
-    offset := DXF_CODE_LINE_SIZE_IN_BYTES + 2
-    line, err := r.reader.Peek(offset)
-    r.err = err
+	offset := DXF_CODE_LINE_SIZE_IN_BYTES + 2
+	line, err := r.reader.Peek(offset)
+	r.err = err
 
-    if r.err != nil {
-        return "", r.err
-    }
+	if r.err != nil {
+		return "", r.err
+	}
 
-    for len(line) < 1 || line[len(line) - 1] != '\n' {
-        line, r.err = r.reader.Peek(offset)
+	for len(line) < 1 || line[len(line)-1] != '\n' {
+		line, r.err = r.reader.Peek(offset)
 
-        if r.err != nil {
-            return "", r.err
-        }
+		if r.err != nil {
+			return "", r.err
+		}
 
-        offset += 1
-    }
+		offset += 1
+	}
 
-    return string(line[DXF_CODE_LINE_SIZE_IN_BYTES + 1:len(line) - 2]), r.err
+	return string(line[DXF_CODE_LINE_SIZE_IN_BYTES+1 : len(line)-2]), r.err
 }
 
 func (r *Reader) consumeCode() (uint16, error) {

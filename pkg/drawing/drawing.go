@@ -17,6 +17,7 @@ type Dxf struct {
 	Lines     []*entity.Line
 	Polylines []*entity.Polyline
 
+	Texts  []*entity.Text
 	MTexts []*entity.MText
 }
 
@@ -33,6 +34,7 @@ func New(filename string) *Dxf {
 	dxf.Lines = []*entity.Line{}
 	dxf.Polylines = []*entity.Polyline{}
 
+	dxf.Texts = []*entity.Text{}
 	dxf.MTexts = []*entity.MText{}
 
 	return dxf

@@ -16,10 +16,10 @@ type PLine struct {
 
 func NewPolyline() *Polyline {
 	return &Polyline{
-		Entity:     NewEntityData(),
-		Flag:       0,
-		Vertices:   0,
-		Coordinates:nil,
+		Entity:      NewEntityData(),
+		Flag:        0,
+		Vertices:    0,
+		Coordinates: nil,
 	}
 }
 

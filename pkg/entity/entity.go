@@ -8,20 +8,20 @@ type Entity interface {
 }
 
 type EntityData struct {
-	Handle uint64
-	Owner  uint64
-    Visibility uint64
+	Handle     uint64
+	Owner      uint64
+	Visibility uint64
 
 	LayerName string
 }
 
 func NewEntityData() *EntityData {
-    return &EntityData {
-        Handle: 0,
-        Owner:  0,
-        Visibility: 0,
-        LayerName: "",
-    }
+	return &EntityData{
+		Handle:     0,
+		Owner:      0,
+		Visibility: 0,
+		LayerName:  "",
+	}
 }
 
 func (e *EntityData) GetHandle() *uint64 {

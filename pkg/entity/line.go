@@ -10,7 +10,7 @@ type Line struct {
 func NewLine() *Line {
 	return &Line{
 		Entity: NewEntityData(),
-		Src: [3]float64{0.0, 0.0, 0.0},
-		Dst: [3]float64{0.0, 0.0, 0.0},
+		Src:    [3]float64{0.0, 0.0, 0.0},
+		Dst:    [3]float64{0.0, 0.0, 0.0},
 	}
 }

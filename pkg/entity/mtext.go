@@ -28,7 +28,7 @@ type MText struct {
 
 func NewMText() *MText {
 	return &MText{
-		Entity: NewEntityData(),
+		Entity:      NewEntityData(),
 		Layout:      0,
 		Direction:   0,
 		LineSpacing: 1,

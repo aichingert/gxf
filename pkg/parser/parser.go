@@ -8,8 +8,8 @@ import (
 
 var (
 	Handle uint64 = 0
-	Owner  uint64 = 0 
-    Line   uint64 = 0
+	Owner  uint64 = 0
+	Line   uint64 = 0
 
 	WrappedErr error
 )
@@ -45,7 +45,7 @@ func FromFile(filename string) (*drawing.Dxf, error) {
 			case "HEADER":
 				Wrap(ParseHeader, reader, dxf)
 			case "BLOCKS":
-                Wrap(ParseBlocks, reader, dxf)
+				Wrap(ParseBlocks, reader, dxf)
 			case "ENTITIES":
 				Wrap(ParseEntities, reader, dxf)
 			default:
