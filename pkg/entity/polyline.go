@@ -23,7 +23,7 @@ func NewPolyline() *Polyline {
 	}
 }
 
-func (p *Polyline) PolylineAppendCoordinate(coords2D [2]float64, bulge float64) {
+func (p *Polyline) AppendPLine(coords2D [2]float64, bulge float64) {
 	line := PLine{
 		X:     coords2D[0],
 		Y:     coords2D[1],

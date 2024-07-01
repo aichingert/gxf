@@ -6,6 +6,7 @@ type Arc struct {
 
 	StartAngle float64
 	EndAngle   float64
+    Counterclockwise    uint64
 }
 
 func NewArc() *Arc {
@@ -14,5 +15,6 @@ func NewArc() *Arc {
 		Circle:     NewCircle(),
 		StartAngle: 0.0,
 		EndAngle:   0.0,
+        Counterclockwise: 0,
 	}
 }

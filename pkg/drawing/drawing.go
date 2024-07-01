@@ -13,12 +13,15 @@ type Dxf struct {
 
 	Arcs    []*entity.Arc
 	Circles []*entity.Circle
+	Ellipses []*entity.Ellipse
 
 	Lines     []*entity.Line
 	Polylines []*entity.Polyline
 
 	Texts  []*entity.Text
 	MTexts []*entity.MText
+
+    Hatches []*entity.Hatch
 }
 
 func New(filename string) *Dxf {
@@ -26,16 +29,6 @@ func New(filename string) *Dxf {
 
 	dxf.FileName = filename
 	dxf.Header = header.New()
-	dxf.Blocks = []*blocks.Block{}
-
-	dxf.Arcs = []*entity.Arc{}
-	dxf.Circles = []*entity.Circle{}
-
-	dxf.Lines = []*entity.Line{}
-	dxf.Polylines = []*entity.Polyline{}
-
-	dxf.Texts = []*entity.Text{}
-	dxf.MTexts = []*entity.MText{}
 
 	return dxf
 }

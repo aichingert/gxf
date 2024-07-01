@@ -118,27 +118,27 @@ func ParseMText(r *Reader, dxf *drawing.Dxf) error {
 	return r.Err()
 }
 
-// TODO: create hatch
 func ParseHatch(r *Reader, dxf *drawing.Dxf) error {
-	hatch := entity.NewMText()
+	hatch := entity.NewHatch()
 
 	if ParseAcDbEntity(r, hatch.Entity) != nil ||
 		ParseAcDbHatch(r, hatch) != nil {
 		return r.Err()
 	}
 
+    dxf.Hatches = append(dxf.Hatches, hatch)
 	return r.Err()
 }
 
-// TODO: create entity ellipse
 func ParseEllipse(r *Reader, dxf *drawing.Dxf) error {
-	ellipse := entity.NewMText()
+	ellipse := entity.NewEllipse()
 
 	if ParseAcDbEntity(r, ellipse.Entity) != nil ||
 		ParseAcDbEllipse(r, ellipse) != nil {
 		return r.Err()
 	}
 
+    dxf.Ellipses = append(dxf.Ellipses, ellipse)
 	return r.Err()
 }
 

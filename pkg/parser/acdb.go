@@ -82,7 +82,7 @@ func ParseAcDbPolyline(r *Reader, polyline *entity.Polyline) error {
 			return r.Err()
 		}
 
-		polyline.PolylineAppendCoordinate(coords2D, bulge)
+		polyline.AppendPLine(coords2D, bulge)
 	}
 
 	return r.Err()
@@ -224,23 +224,21 @@ func HelperParseEmbeddedObject(r *Reader) error {
 	return r.Err()
 }
 
-// TODO: replace with entity.Hatch
-func ParseAcDbHatch(r *Reader, hatch *entity.MText) error {
+func ParseAcDbHatch(r *Reader, hatch *entity.Hatch) error {
 	if r.AssertNextLine("AcDbHatch") != nil {
 		return r.Err()
 	}
 
 	coords3D := [3]float64{0.0, 0.0, 0.0}
-	r.ConsumeCoordinates(coords3D[:])
-
+    // TODO: elevation ignored since 2d
+	r.ConsumeCoordinates(coords3D[:]) 
 	// TODO: [210/220/230] extrusion direction (only need 2d maybe later)
 	r.ConsumeCoordinates(coords3D[:])
 
-	r.ConsumeStr(nil) // pattern name
-	r.ConsumeNumber(70, DEC_RADIX, "solid fill flag", nil)
-	r.ConsumeNumber(71, DEC_RADIX, "associativity flag", nil)
+	r.ConsumeStr(&hatch.PatternName)
+	r.ConsumeNumber(70, DEC_RADIX, "solid fill flag", &hatch.SolidFill)
+	r.ConsumeNumber(71, DEC_RADIX, "associativity flag", &hatch.Associative)
 
-	// number of boundary paths?
 	boundaryPaths := uint64(0)
 	r.ConsumeNumber(91, DEC_RADIX, "boundary paths", &boundaryPaths)
 
@@ -252,21 +250,23 @@ func ParseAcDbHatch(r *Reader, hatch *entity.MText) error {
 		r.ConsumeNumber(92, DEC_RADIX, "boundary path type flag", &pathTypeFlag)
 
 		if pathTypeFlag&2 == 2 {
+            polyline := entity.NewPolyline()
 
+            // maybe consider?
 			r.ConsumeNumber(72, DEC_RADIX, "has bulge flag", nil)
 			r.ConsumeNumber(73, DEC_RADIX, "is closed flag", nil)
+			r.ConsumeNumber(93, DEC_RADIX, "number of polyline vertices", &polyline.Vertices)
 
-			vertices := uint64(0)
-			r.ConsumeNumber(93, DEC_RADIX, "number of polyline vertices", &vertices)
-
-			coord2D := [2]float64{0.0, 0.0}
-
-			for vertex := uint64(0); vertex < vertices; vertex++ {
+			for vertex := uint64(0); vertex < polyline.Vertices; vertex++ {
+			    coord2D, bulge := [2]float64{0.0, 0.0}, 0.0
 				r.ConsumeCoordinates(coord2D[:])
-				r.ConsumeFloatIf(42, "expected bulge", nil)
+				r.ConsumeFloatIf(42, "expected bulge", &bulge)
+                polyline.AppendPLine(coord2D, bulge)
 			}
+
+            hatch.Polylines = append(hatch.Polylines, polyline)
 		} else {
-			edges, edgeType, coord2D := uint64(0), uint64(0), [2]float64{0.0, 0.0}
+			edges, edgeType := uint64(0), uint64(0)
 
 			r.ConsumeNumber(93, DEC_RADIX, "number of edges in this boundary path", &edges)
 
@@ -275,15 +275,19 @@ func ParseAcDbHatch(r *Reader, hatch *entity.MText) error {
 
 				switch edgeType {
 				case 1: // Line
-					r.ConsumeCoordinates(coord2D[:])
-					r.ConsumeCoordinates(coord2D[:])
+                    line := entity.NewLine()
+                    r.ConsumeCoordinates(line.Src[:2])
+                    r.ConsumeCoordinates(line.Dst[:2])
+                    hatch.Lines = append(hatch.Lines, line)
 				case 2: // Circular arc
-					r.ConsumeCoordinates(coord2D[:])
-					r.ConsumeFloat(40, "radius", nil)
+                    arc := entity.NewArc()
+                    r.ConsumeCoordinates(arc.Circle.Coordinates[:2])
+					r.ConsumeFloat(40, "radius", &arc.Circle.Radius)
 
-					r.ConsumeFloat(50, "start angle", nil)
-					r.ConsumeFloat(51, "end angle", nil)
-					r.ConsumeNumber(73, DEC_RADIX, "is counterclockwise", nil)
+					r.ConsumeFloat(50, "start angle", &arc.StartAngle)
+					r.ConsumeFloat(51, "end angle", &arc.EndAngle)
+					r.ConsumeNumber(73, DEC_RADIX, "is counterclockwise", &arc.Counterclockwise)
+                    hatch.Arcs = append(hatch.Arcs, arc)
 				case 3: // Elliptic arc
 					log.Fatal("hatch elliptic arc")
 				case 4: // Spine
@@ -303,30 +307,35 @@ func ParseAcDbHatch(r *Reader, hatch *entity.MText) error {
 		}
 	}
 
-	r.ConsumeNumber(75, DEC_RADIX, "hatch style", nil)
-	r.ConsumeNumber(76, DEC_RADIX, "hatch pattern type", nil)
-	r.ConsumeFloatIf(52, "hatch pattern angle", nil)
-	r.ConsumeFloatIf(41, "hatch pattern scale or spacing", nil)
-	r.ConsumeFloatIf(77, "hatch pattern double flag", nil)
+	r.ConsumeNumber(75, DEC_RADIX, "hatch style", &hatch.Style)
+	r.ConsumeNumber(76, DEC_RADIX, "hatch pattern type", &hatch.Pattern)
+	r.ConsumeFloatIf(52, "hatch pattern angle", &hatch.Angle)
+	r.ConsumeFloatIf(41, "hatch pattern scale or spacing", &hatch.Scale)
+	r.ConsumeNumberIf(77, DEC_RADIX, "hatch pattern double flag", &hatch.Double)
 
 	patternDefinitions := uint64(0)
 
 	r.ConsumeNumberIf(78, DEC_RADIX, "number of pattern definition lines", &patternDefinitions)
 
 	for i := uint64(0); i < patternDefinitions; i++ {
-		r.ConsumeFloat(53, "pattern line angle", nil)
-		r.ConsumeFloat(43, "pattern line base point x", nil)
-		r.ConsumeFloat(44, "pattern line base point y", nil)
-		r.ConsumeFloat(45, "pattern line offset x", nil)
-		r.ConsumeFloat(46, "pattern line offset y", nil)
+        base, offset, angle := [2]float64{0.0, 0.0}, [2]float64{0.0, 0.0}, 0.0
+        dashes, dashLen := []float64{}, 0.0
+
+		r.ConsumeFloat(53, "pattern line angle", &angle)
+		r.ConsumeFloat(43, "pattern line base point x", &base[0])
+		r.ConsumeFloat(44, "pattern line base point y", &base[1])
+		r.ConsumeFloat(45, "pattern line offset x", &offset[0])
+		r.ConsumeFloat(46, "pattern line offset y", &offset[1])
 
 		dashLengths := uint64(0)
-
 		r.ConsumeNumber(79, DEC_RADIX, "number of dash length items", &dashLengths)
 
 		for j := uint64(0); j < dashLengths; j++ {
-			r.ConsumeFloat(49, "dash length", nil)
+			r.ConsumeFloat(49, "dash length", &dashLen)
+            dashes = append(dashes, dashLen)
 		}
+
+        hatch.AppendPatternLine(angle, base, offset, dashes)
 	}
 
 	r.ConsumeFloatIf(47, "pixel size used to determine density to perform ray casting", nil)
@@ -360,30 +369,26 @@ func ParseAcDbHatch(r *Reader, hatch *entity.MText) error {
 
 	r.ConsumeStrIf(470, nil) // string default = LINEAR
 
-	_ = hatch
 	return r.Err()
 }
 
-// TODO: implement entity entity.Ellipse
-func ParseAcDbEllipse(r *Reader, ellipse *entity.MText) error {
+func ParseAcDbEllipse(r *Reader, ellipse *entity.Ellipse) error {
 	if r.AssertNextLine("AcDbEllipse") != nil {
 		return r.Err()
 	}
 
-	coord3D := [3]float64{0.0, 0.0, 0.0}
-
-	r.ConsumeCoordinates(coord3D[:]) // Center point
-	r.ConsumeCoordinates(coord3D[:]) // Endpoint of major axis
+    r.ConsumeCoordinates(ellipse.Center[:]) // Center point
+    r.ConsumeCoordinates(ellipse.EndPoint[:]) // Endpoint of major axis
 
 	// XYZ extrusion direction
 	// optional default = 0, 0, 1
+	coord3D := [3]float64{0.0, 0.0, 0.0}
 	r.ConsumeCoordinatesIf(210, coord3D[:])
 
-	r.ConsumeFloat(40, "ratio of minor axis to major axis", nil)
-	r.ConsumeFloat(41, "start parameter", nil)
-	r.ConsumeFloat(42, "end parameter", nil)
+	r.ConsumeFloat(40, "ratio of minor axis to major axis", &ellipse.Ratio)
+	r.ConsumeFloat(41, "start parameter", &ellipse.Start)
+	r.ConsumeFloat(42, "end parameter", &ellipse.End)
 
-	_ = ellipse
 	return r.Err()
 }
 
