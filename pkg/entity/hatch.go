@@ -59,3 +59,7 @@ func (h *Hatch) AppendPatternLine(
 
 	h.PatternLines = append(h.PatternLines, patternLine)
 }
+
+func (e *EntitiesData) AppendHatch(hatch *Hatch) {
+	e.Hatches = append(e.Hatches, hatch)
+}

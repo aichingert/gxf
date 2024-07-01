@@ -19,3 +19,7 @@ func NewEllipse() *Ellipse {
 		EndPoint: [3]float64{0.0, 0.0, 0.0},
 	}
 }
+
+func (e *EntitiesData) AppendEllipse(ellipse *Ellipse) {
+	e.Ellipses = append(e.Ellipses, ellipse)
+}

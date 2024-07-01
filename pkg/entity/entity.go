@@ -1,5 +1,33 @@
 package entity
 
+type Entities interface {
+	AppendArc(arc *Arc)
+	AppendCircle(circle *Circle)
+	AppendEllipse(ellipse *Ellipse)
+	AppendLine(lines *Line)
+	AppendPolyline(polyline *Polyline)
+	AppendText(text *Text)
+	AppendMText(mtext *MText)
+	AppendHatch(hatch *Hatch)
+	AppendInsert(insert *Insert)
+}
+
+type EntitiesData struct {
+	Arcs      []*Arc
+	Circles   []*Circle
+	Ellipses  []*Ellipse
+	Lines     []*Line
+	Polylines []*Polyline
+	Texts     []*Text
+	MTexts    []*MText
+	Hatches   []*Hatch
+	Inserts   []*Insert
+}
+
+func New() *EntitiesData {
+	return new(EntitiesData)
+}
+
 type Entity interface {
 	GetHandle() *uint64
 	GetOwner() *uint64

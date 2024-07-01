@@ -39,38 +39,37 @@ func ParseBlock(r *Reader, dxf *drawing.Dxf) error {
 	for r.ScanDxfLine() {
 		switch r.DxfLine().Line {
 		case "INSERT":
-			Wrap(ParseInsert, r, dxf)
+			WrapEntity(ParseInsert, r, block.EntitiesData)
 		case "LINE":
-			Wrap(ParseLine, r, dxf)
+			WrapEntity(ParseLine, r, block.EntitiesData)
 		case "LWPOLYLINE":
-			Wrap(ParsePolyline, r, dxf)
+			WrapEntity(ParsePolyline, r, block.EntitiesData)
 		case "MTEXT":
-			Wrap(ParseMText, r, dxf)
+			WrapEntity(ParseMText, r, block.EntitiesData)
 		case "ARC":
-			Wrap(ParseArc, r, dxf)
+			WrapEntity(ParseArc, r, block.EntitiesData)
 		case "CIRCLE":
-			Wrap(ParseCircle, r, dxf)
+			WrapEntity(ParseCircle, r, block.EntitiesData)
 		case "HATCH":
-			Wrap(ParseHatch, r, dxf)
+			WrapEntity(ParseHatch, r, block.EntitiesData)
+		case "REGION":
+			WrapEntity(ParseRegion, r, block.EntitiesData)
+		case "ATTDEF":
+			WrapEntity(ParseAttdef, r, block.EntitiesData)
 		case "ENDBLK":
 			Wrap(ParseBlockEnd, r, dxf)
 			dxf.Blocks = append(dxf.Blocks, block)
 			return WrappedErr
-		case "ATTDEF":
-			Wrap(ParseAttdef, r, dxf)
-		case "REGION":
-			Wrap(ParseRegion, r, dxf)
 		default:
 			log.Fatal("[Block(", Line, ")] invalid subclass ", r.DxfLine().Line)
 		}
 
-		if WrappedErr != nil {
-			return WrappedErr
+		if WrappedEntityErr != nil {
+			return WrappedEntityErr
 		}
 
 		// TODO: parse XDATA
 		code, err := r.PeekCode()
-		log.Println(code)
 		for code != 0 && err == nil {
 			r.ConsumeStr(nil)
 			code, err = r.PeekCode()

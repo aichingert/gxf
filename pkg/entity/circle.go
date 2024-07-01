@@ -14,3 +14,7 @@ func NewCircle() *Circle {
 		Coordinates: [3]float64{0.0, 0.0, 0.0},
 	}
 }
+
+func (e *EntitiesData) AppendCircle(circle *Circle) {
+	e.Circles = append(e.Circles, circle)
+}

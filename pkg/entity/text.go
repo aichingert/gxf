@@ -43,3 +43,7 @@ func NewText() *Text {
 		Coordinates: [3]float64{0.0, 0.0, 0.0},
 	}
 }
+
+func (e *EntitiesData) AppendText(text *Text) {
+	e.Texts = append(e.Texts, text)
+}

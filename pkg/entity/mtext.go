@@ -39,3 +39,7 @@ func NewMText() *MText {
 		Coordinates: [3]float64{0.0, 0.0, 0.0},
 	}
 }
+
+func (e *EntitiesData) AppendMText(mtext *MText) {
+	e.MTexts = append(e.MTexts, mtext)
+}

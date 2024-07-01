@@ -14,3 +14,7 @@ func NewLine() *Line {
 		Dst:    [3]float64{0.0, 0.0, 0.0},
 	}
 }
+
+func (e *EntitiesData) AppendLine(line *Line) {
+	e.Lines = append(e.Lines, line)
+}

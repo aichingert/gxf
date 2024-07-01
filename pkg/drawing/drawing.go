@@ -10,18 +10,7 @@ type Dxf struct {
 	FileName string
 	Header   *header.Header
 	Blocks   []*blocks.Block
-
-	Arcs     []*entity.Arc
-	Circles  []*entity.Circle
-	Ellipses []*entity.Ellipse
-
-	Lines     []*entity.Line
-	Polylines []*entity.Polyline
-
-	Texts  []*entity.Text
-	MTexts []*entity.MText
-
-	Hatches []*entity.Hatch
+	*entity.EntitiesData
 }
 
 func New(filename string) *Dxf {
@@ -29,6 +18,7 @@ func New(filename string) *Dxf {
 
 	dxf.FileName = filename
 	dxf.Header = header.New()
+	dxf.EntitiesData = entity.New()
 
 	return dxf
 }

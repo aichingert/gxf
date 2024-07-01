@@ -32,3 +32,7 @@ func (p *Polyline) AppendPLine(coords2D [2]float64, bulge float64) {
 
 	p.Coordinates = append(p.Coordinates, line)
 }
+
+func (e *EntitiesData) AppendPolyline(polyline *Polyline) {
+	e.Polylines = append(e.Polylines, polyline)
+}

@@ -6,6 +6,9 @@ import (
 
 type Block struct {
 	Entity *entity.EntityData
+	*entity.EntitiesData
+
+	Attdefs []*entity.Attdef
 
 	BlockName string
 	EndHandle uint64
@@ -14,8 +17,6 @@ type Block struct {
 	XrefPath    string
 	Description string
 	Coordinates [3]float64
-
-	// TODO: ATTDEF
 }
 
 func NewBlock() *Block {
@@ -25,9 +26,10 @@ func NewBlock() *Block {
 			Owner:     0,
 			LayerName: "",
 		},
-		BlockName: "",
-		EndHandle: 0,
-		Flag:      0,
+		EntitiesData: entity.New(),
+		BlockName:    "",
+		EndHandle:    0,
+		Flag:         0,
 
 		XrefPath:    "",
 		Description: "",

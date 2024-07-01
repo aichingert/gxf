@@ -18,3 +18,7 @@ func NewArc() *Arc {
 		Counterclockwise: 0,
 	}
 }
+
+func (e *EntitiesData) AppendArc(arc *Arc) {
+	e.Arcs = append(e.Arcs, arc)
+}

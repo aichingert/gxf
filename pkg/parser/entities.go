@@ -7,29 +7,41 @@ import (
 	"github.com/aichingert/dxf/pkg/entity"
 )
 
+type ParseEntityFunction func(*Reader, entity.Entities) error
+
+var WrappedEntityErr error
+
+func WrapEntity(fn ParseEntityFunction, r *Reader, entities entity.Entities) {
+	if WrappedEntityErr != nil {
+		return
+	}
+
+	WrappedEntityErr = fn(r, entities)
+}
+
 func ParseEntities(r *Reader, dxf *drawing.Dxf) error {
 	for r.ScanDxfLine() {
 		switch r.DxfLine().Line {
 		case "LINE":
-			Wrap(ParseLine, r, dxf)
+			WrapEntity(ParseLine, r, dxf.EntitiesData)
 		case "LWPOLYLINE":
-			Wrap(ParsePolyline, r, dxf)
+			WrapEntity(ParsePolyline, r, dxf.EntitiesData)
 		case "ARC":
-			Wrap(ParseArc, r, dxf)
+			WrapEntity(ParseArc, r, dxf.EntitiesData)
 		case "CIRCLE":
-			Wrap(ParseCircle, r, dxf)
+			WrapEntity(ParseCircle, r, dxf.EntitiesData)
 		case "TEXT":
-			Wrap(ParseText, r, dxf)
+			WrapEntity(ParseText, r, dxf.EntitiesData)
 		case "MTEXT":
-			Wrap(ParseMText, r, dxf)
+			WrapEntity(ParseMText, r, dxf.EntitiesData)
 		case "HATCH":
-			Wrap(ParseHatch, r, dxf)
+			WrapEntity(ParseHatch, r, dxf.EntitiesData)
 		case "ELLIPSE":
-			Wrap(ParseEllipse, r, dxf)
+			WrapEntity(ParseEllipse, r, dxf.EntitiesData)
 		case "POINT":
-			Wrap(ParsePoint, r, dxf)
+			WrapEntity(ParsePoint, r, dxf.EntitiesData)
 		case "INSERT":
-			Wrap(ParseInsert, r, dxf)
+			WrapEntity(ParseInsert, r, dxf.EntitiesData)
 		case "ENDSEC":
 			return r.Err()
 		default:
@@ -37,15 +49,15 @@ func ParseEntities(r *Reader, dxf *drawing.Dxf) error {
 			return NewParseError("unknown entity")
 		}
 
-		if WrappedErr != nil {
-			return WrappedErr
+		if WrappedEntityErr != nil {
+			return WrappedEntityErr
 		}
 	}
 
 	return r.Err()
 }
 
-func ParseLine(r *Reader, dxf *drawing.Dxf) error {
+func ParseLine(r *Reader, entities entity.Entities) error {
 	line := entity.NewLine()
 
 	if ParseAcDbEntity(r, line.Entity) != nil ||
@@ -53,11 +65,11 @@ func ParseLine(r *Reader, dxf *drawing.Dxf) error {
 		return r.Err()
 	}
 
-	dxf.Lines = append(dxf.Lines, line)
+	entities.AppendLine(line)
 	return r.Err()
 }
 
-func ParsePolyline(r *Reader, dxf *drawing.Dxf) error {
+func ParsePolyline(r *Reader, entities entity.Entities) error {
 	polyline := entity.NewPolyline()
 
 	if ParseAcDbEntity(r, polyline.Entity) != nil ||
@@ -65,11 +77,11 @@ func ParsePolyline(r *Reader, dxf *drawing.Dxf) error {
 		return r.Err()
 	}
 
-	dxf.Polylines = append(dxf.Polylines, polyline)
+	entities.AppendPolyline(polyline)
 	return r.Err()
 }
 
-func ParseArc(r *Reader, dxf *drawing.Dxf) error {
+func ParseArc(r *Reader, entities entity.Entities) error {
 	arc := entity.NewArc()
 
 	if ParseAcDbEntity(r, arc.Entity) != nil ||
@@ -78,11 +90,11 @@ func ParseArc(r *Reader, dxf *drawing.Dxf) error {
 		return r.Err()
 	}
 
-	dxf.Arcs = append(dxf.Arcs, arc)
+	entities.AppendArc(arc)
 	return r.Err()
 }
 
-func ParseCircle(r *Reader, dxf *drawing.Dxf) error {
+func ParseCircle(r *Reader, entities entity.Entities) error {
 	circle := entity.NewCircle()
 
 	if ParseAcDbEntity(r, circle.Entity) != nil ||
@@ -90,11 +102,11 @@ func ParseCircle(r *Reader, dxf *drawing.Dxf) error {
 		return r.Err()
 	}
 
-	dxf.Circles = append(dxf.Circles, circle)
+	entities.AppendCircle(circle)
 	return r.Err()
 }
 
-func ParseText(r *Reader, dxf *drawing.Dxf) error {
+func ParseText(r *Reader, entities entity.Entities) error {
 	text := entity.NewText()
 
 	if ParseAcDbEntity(r, text.Entity) != nil ||
@@ -102,11 +114,11 @@ func ParseText(r *Reader, dxf *drawing.Dxf) error {
 		return r.Err()
 	}
 
-	dxf.Texts = append(dxf.Texts, text)
+	entities.AppendText(text)
 	return r.Err()
 }
 
-func ParseMText(r *Reader, dxf *drawing.Dxf) error {
+func ParseMText(r *Reader, entities entity.Entities) error {
 	mText := entity.NewMText()
 
 	if ParseAcDbEntity(r, mText.Entity) != nil ||
@@ -114,11 +126,11 @@ func ParseMText(r *Reader, dxf *drawing.Dxf) error {
 		return r.Err()
 	}
 
-	dxf.MTexts = append(dxf.MTexts, mText)
+	entities.AppendMText(mText)
 	return r.Err()
 }
 
-func ParseHatch(r *Reader, dxf *drawing.Dxf) error {
+func ParseHatch(r *Reader, entities entity.Entities) error {
 	hatch := entity.NewHatch()
 
 	if ParseAcDbEntity(r, hatch.Entity) != nil ||
@@ -126,11 +138,11 @@ func ParseHatch(r *Reader, dxf *drawing.Dxf) error {
 		return r.Err()
 	}
 
-	dxf.Hatches = append(dxf.Hatches, hatch)
+	entities.AppendHatch(hatch)
 	return r.Err()
 }
 
-func ParseEllipse(r *Reader, dxf *drawing.Dxf) error {
+func ParseEllipse(r *Reader, entities entity.Entities) error {
 	ellipse := entity.NewEllipse()
 
 	if ParseAcDbEntity(r, ellipse.Entity) != nil ||
@@ -138,12 +150,12 @@ func ParseEllipse(r *Reader, dxf *drawing.Dxf) error {
 		return r.Err()
 	}
 
-	dxf.Ellipses = append(dxf.Ellipses, ellipse)
+	entities.AppendEllipse(ellipse)
 	return r.Err()
 }
 
 // TODO: create entity point
-func ParsePoint(r *Reader, dxf *drawing.Dxf) error {
+func ParsePoint(r *Reader, entities entity.Entities) error {
 	point := entity.NewMText()
 
 	if ParseAcDbEntity(r, point.Entity) != nil ||
@@ -154,7 +166,7 @@ func ParsePoint(r *Reader, dxf *drawing.Dxf) error {
 	return r.Err()
 }
 
-func ParseInsert(r *Reader, dxf *drawing.Dxf) error {
+func ParseInsert(r *Reader, entities entity.Entities) error {
 	insert := entity.NewInsert()
 
 	if ParseAcDbEntity(r, insert.Entity) != nil ||
@@ -165,7 +177,7 @@ func ParseInsert(r *Reader, dxf *drawing.Dxf) error {
 	for insert.AttributesFollow == 1 && r.ScanDxfLine() {
 		switch r.DxfLine().Line {
 		case "ATTRIB":
-			Wrap(ParseAttrib, r, dxf)
+			WrapEntity(ParseAttrib, r, entities)
 		case "SEQEND":
 			// marks end of insert
 			ParseAcDbEntity(r, insert.Entity)
@@ -174,15 +186,16 @@ func ParseInsert(r *Reader, dxf *drawing.Dxf) error {
 			log.Fatal("[INSERT(", Line, ")] invalid subclass marker ", r.DxfLine().Line)
 		}
 
-		if WrappedErr != nil {
-			return WrappedErr
+		if WrappedEntityErr != nil {
+			return WrappedEntityErr
 		}
 	}
 
+	entities.AppendInsert(insert)
 	return r.Err()
 }
 
-func ParseRegion(r *Reader, dxf *drawing.Dxf) error {
+func ParseRegion(r *Reader, entities entity.Entities) error {
 	throwAway := entity.NewMText()
 
 	if ParseAcDbEntity(r, throwAway.Entity) != nil ||
@@ -196,7 +209,7 @@ func ParseRegion(r *Reader, dxf *drawing.Dxf) error {
 	return r.Err()
 }
 
-func ParseAttrib(r *Reader, dxf *drawing.Dxf) error {
+func ParseAttrib(r *Reader, entities entity.Entities) error {
 	attrib := entity.NewAttrib()
 
 	if ParseAcDbEntity(r, attrib.Entity) != nil ||
@@ -208,7 +221,7 @@ func ParseAttrib(r *Reader, dxf *drawing.Dxf) error {
 	return r.Err()
 }
 
-func ParseAttdef(r *Reader, dxf *drawing.Dxf) error {
+func ParseAttdef(r *Reader, entities entity.Entities) error {
 	attdef := entity.NewAttdef()
 
 	if ParseAcDbEntity(r, attdef.Entity) != nil ||
