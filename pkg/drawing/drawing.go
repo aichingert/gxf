@@ -11,8 +11,8 @@ type Dxf struct {
 	Header   *header.Header
 	Blocks   []*blocks.Block
 
-	Arcs    []*entity.Arc
-	Circles []*entity.Circle
+	Arcs     []*entity.Arc
+	Circles  []*entity.Circle
 	Ellipses []*entity.Ellipse
 
 	Lines     []*entity.Line
@@ -21,7 +21,7 @@ type Dxf struct {
 	Texts  []*entity.Text
 	MTexts []*entity.MText
 
-    Hatches []*entity.Hatch
+	Hatches []*entity.Hatch
 }
 
 func New(filename string) *Dxf {

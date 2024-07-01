@@ -53,51 +53,43 @@ func ParseBlock(r *Reader, dxf *drawing.Dxf) error {
 		case "HATCH":
 			Wrap(ParseHatch, r, dxf)
 		case "ENDBLK":
-			ParseAcDbEntity(r, block.Entity)
+			Wrap(ParseBlockEnd, r, dxf)
+			dxf.Blocks = append(dxf.Blocks, block)
+			return WrappedErr
 		case "ATTDEF":
-			Wrap(ParseAttDef, r, dxf)
+			Wrap(ParseAttdef, r, dxf)
 		case "REGION":
 			Wrap(ParseRegion, r, dxf)
-		case "AcDbBlockEnd":
-			dxf.Blocks = append(dxf.Blocks, block)
 		default:
-			log.Fatal("[Block(", Line, ")] subclass ", r.DxfLine().Line)
+			log.Fatal("[Block(", Line, ")] invalid subclass ", r.DxfLine().Line)
 		}
 
-		if WrappedErr != nil || r.DxfLine().Line == "AcDbBlockEnd" {
+		if WrappedErr != nil {
 			return WrappedErr
 		}
 
-		r.ConsumeStrIf(1001, nil)
-		r.ConsumeNumberIf(1070, DEC_RADIX, "not sure", nil)
-		r.ConsumeNumberIf(1071, DEC_RADIX, "not sure", nil)
+		// TODO: parse XDATA
+		code, err := r.PeekCode()
+		log.Println(code)
+		for code != 0 && err == nil {
+			r.ConsumeStr(nil)
+			code, err = r.PeekCode()
+		}
+		if err != nil {
+			return err
+		}
+	}
 
-		r.ConsumeStrIf(1000, nil)
-		r.ConsumeStrIf(1000, nil)
+	return r.Err()
+}
 
-		r.ConsumeNumberIf(1005, HEX_RADIX, "not sure", nil)
-		r.ConsumeStrIf(1001, nil)
-		r.ConsumeNumberIf(1070, DEC_RADIX, "not sure", nil)
-		r.ConsumeStrIf(1000, nil)
-		r.ConsumeStrIf(1002, nil)
-		r.ConsumeNumberIf(1070, DEC_RADIX, "not sure", nil)
-		r.ConsumeNumberIf(1070, DEC_RADIX, "not sure", nil)
-		r.ConsumeStrIf(1002, nil)
+// TODO: maybe pass block to function
+func ParseBlockEnd(r *Reader, dxf *drawing.Dxf) error {
+	endblk := blocks.NewBlock()
 
-		r.ConsumeStrIf(1001, nil)
-		r.ConsumeNumberIf(1010, DEC_RADIX, "not sure", nil)
-		r.ConsumeNumberIf(1020, DEC_RADIX, "not sure", nil)
-		r.ConsumeNumberIf(1030, DEC_RADIX, "not sure", nil)
-
-		r.ConsumeStrIf(1001, nil)
-		r.ConsumeNumberIf(1070, DEC_RADIX, "not sure", nil)
-		r.ConsumeNumberIf(1071, DEC_RADIX, "not sure", nil)
-		r.ConsumeNumberIf(1005, HEX_RADIX, "not sure", nil)
-
-		r.ConsumeStrIf(1001, nil)
-		r.ConsumeNumberIf(1010, DEC_RADIX, "not sure", nil)
-		r.ConsumeNumberIf(1020, DEC_RADIX, "not sure", nil)
-		r.ConsumeNumberIf(1030, DEC_RADIX, "not sure", nil)
+	if ParseAcDbEntity(r, endblk.Entity) != nil ||
+		r.AssertNextLine("AcDbBlockEnd") != nil {
+		return r.Err()
 	}
 
 	return r.Err()

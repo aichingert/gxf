@@ -1,61 +1,61 @@
 package entity
 
 type Hatch struct {
-    Entity  *EntityData
+	Entity *EntityData
 
-    PatternName string
-    SolidFill   uint64
-    Associative uint64
+	PatternName string
+	SolidFill   uint64
+	Associative uint64
 
-    Style   uint64
-    Pattern uint64
-    Angle   float64
-    Scale   float64
-    Double  uint64
+	Style   uint64
+	Pattern uint64
+	Angle   float64
+	Scale   float64
+	Double  uint64
 
-    PatternLines []*PatternLine
+	PatternLines []*PatternLine
 
-	Lines []*Line
+	Lines     []*Line
 	Polylines []*Polyline
-    Arcs []*Arc
-    Ellipses []*Ellipse
+	Arcs      []*Arc
+	Ellipses  []*Ellipse
 
-    // TODO: spline
+	// TODO: spline
 }
 
 type PatternLine struct {
-    Base        [2]float64
-    Offset      [2]float64
-    Angle       float64
-    DashLengths []float64
+	Base        [2]float64
+	Offset      [2]float64
+	Angle       float64
+	DashLengths []float64
 }
 
 func NewHatch() *Hatch {
-    return &Hatch {
-        Entity: NewEntityData(),
+	return &Hatch{
+		Entity: NewEntityData(),
 
-        PatternName: "",
-        SolidFill:  0,
-        Associative: 0,
+		PatternName: "",
+		SolidFill:   0,
+		Associative: 0,
 
-        Lines: nil,
-        Polylines: nil,
-        Arcs: nil,
-        Ellipses: nil,
-    }
+		Lines:     nil,
+		Polylines: nil,
+		Arcs:      nil,
+		Ellipses:  nil,
+	}
 }
 
 func (h *Hatch) AppendPatternLine(
-    angle float64, 
-    base [2]float64, 
-    offset [2]float64, 
-    dashes []float64) {
-    patternLine := &PatternLine {
-        Angle: angle,
-        Base: base,
-        Offset: offset,
-        DashLengths: dashes,
-    }
+	angle float64,
+	base [2]float64,
+	offset [2]float64,
+	dashes []float64) {
+	patternLine := &PatternLine{
+		Angle:       angle,
+		Base:        base,
+		Offset:      offset,
+		DashLengths: dashes,
+	}
 
-    h.PatternLines = append(h.PatternLines, patternLine)
+	h.PatternLines = append(h.PatternLines, patternLine)
 }

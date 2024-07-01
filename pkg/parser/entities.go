@@ -126,7 +126,7 @@ func ParseHatch(r *Reader, dxf *drawing.Dxf) error {
 		return r.Err()
 	}
 
-    dxf.Hatches = append(dxf.Hatches, hatch)
+	dxf.Hatches = append(dxf.Hatches, hatch)
 	return r.Err()
 }
 
@@ -138,7 +138,7 @@ func ParseEllipse(r *Reader, dxf *drawing.Dxf) error {
 		return r.Err()
 	}
 
-    dxf.Ellipses = append(dxf.Ellipses, ellipse)
+	dxf.Ellipses = append(dxf.Ellipses, ellipse)
 	return r.Err()
 }
 
@@ -154,84 +154,29 @@ func ParsePoint(r *Reader, dxf *drawing.Dxf) error {
 	return r.Err()
 }
 
-// TODO: have to implement block section first
 func ParseInsert(r *Reader, dxf *drawing.Dxf) error {
-	insert := entity.NewMText() // TODO: insert
+	insert := entity.NewInsert()
 
 	if ParseAcDbEntity(r, insert.Entity) != nil ||
 		ParseAcDbBlockReference(r, insert) != nil {
 		return r.Err()
 	}
 
-	hack, err := r.PeekCode()
-	if err != nil {
-		return err
-	}
-
-	for hack < 1000 && r.ScanDxfLine() {
+	for insert.AttributesFollow == 1 && r.ScanDxfLine() {
 		switch r.DxfLine().Line {
 		case "ATTRIB":
 			Wrap(ParseAttrib, r, dxf)
-		case "ATTDEF":
-			Wrap(ParseAttDef, r, dxf)
-		case "HATCH":
-			Wrap(ParseHatch, r, dxf)
-		case "MTEXT":
-			Wrap(ParseMText, r, dxf)
-		case "LINE":
-			Wrap(ParseLine, r, dxf)
-		case "LWPOLYLINE":
-			Wrap(ParsePolyline, r, dxf)
-		case "ARC":
-			Wrap(ParseArc, r, dxf)
-		case "CIRCLE":
-			Wrap(ParseCircle, r, dxf)
-		case "REGION":
-			Wrap(ParseRegion, r, dxf)
-		case "INSERT":
-			Wrap(ParseInsert, r, dxf)
-		case "ENDBLK":
-			ParseAcDbEntity(r, insert.Entity) // insert does not end with seqend
 		case "SEQEND":
-			ParseAcDbEntity(r, insert.Entity) // marks end of insert
+			// marks end of insert
+			ParseAcDbEntity(r, insert.Entity)
+			return r.Err()
 		default:
 			log.Fatal("[INSERT(", Line, ")] invalid subclass marker ", r.DxfLine().Line)
 		}
 
-		if WrappedErr != nil || r.DxfLine().Line == "SEQEND" || r.DxfLine().Line == "ENDBLK" {
+		if WrappedErr != nil {
 			return WrappedErr
 		}
-
-		r.ConsumeStrIf(1001, nil)
-		r.ConsumeNumberIf(1070, DEC_RADIX, "not sure", nil)
-		r.ConsumeNumberIf(1071, DEC_RADIX, "not sure", nil)
-
-		r.ConsumeStrIf(1000, nil)
-		r.ConsumeStrIf(1000, nil)
-
-		r.ConsumeNumberIf(1005, HEX_RADIX, "not sure", nil)
-		r.ConsumeStrIf(1001, nil)
-		r.ConsumeNumberIf(1070, DEC_RADIX, "not sure", nil)
-		r.ConsumeStrIf(1000, nil)
-		r.ConsumeStrIf(1002, nil)
-		r.ConsumeNumberIf(1070, DEC_RADIX, "not sure", nil)
-		r.ConsumeNumberIf(1070, DEC_RADIX, "not sure", nil)
-		r.ConsumeStrIf(1002, nil)
-
-		r.ConsumeStrIf(1001, nil)
-		r.ConsumeNumberIf(1010, DEC_RADIX, "not sure", nil)
-		r.ConsumeNumberIf(1020, DEC_RADIX, "not sure", nil)
-		r.ConsumeNumberIf(1030, DEC_RADIX, "not sure", nil)
-
-		r.ConsumeStrIf(1001, nil)
-		r.ConsumeNumberIf(1070, DEC_RADIX, "not sure", nil)
-		r.ConsumeNumberIf(1071, DEC_RADIX, "not sure", nil)
-		r.ConsumeNumberIf(1005, HEX_RADIX, "not sure", nil)
-
-		r.ConsumeStrIf(1001, nil)
-		r.ConsumeNumberIf(1010, DEC_RADIX, "not sure", nil)
-		r.ConsumeNumberIf(1020, DEC_RADIX, "not sure", nil)
-		r.ConsumeNumberIf(1030, DEC_RADIX, "not sure", nil)
 	}
 
 	return r.Err()
@@ -263,7 +208,7 @@ func ParseAttrib(r *Reader, dxf *drawing.Dxf) error {
 	return r.Err()
 }
 
-func ParseAttDef(r *Reader, dxf *drawing.Dxf) error {
+func ParseAttdef(r *Reader, dxf *drawing.Dxf) error {
 	attdef := entity.NewAttdef()
 
 	if ParseAcDbEntity(r, attdef.Entity) != nil ||

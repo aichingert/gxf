@@ -230,8 +230,8 @@ func ParseAcDbHatch(r *Reader, hatch *entity.Hatch) error {
 	}
 
 	coords3D := [3]float64{0.0, 0.0, 0.0}
-    // TODO: elevation ignored since 2d
-	r.ConsumeCoordinates(coords3D[:]) 
+	// TODO: elevation ignored since 2d
+	r.ConsumeCoordinates(coords3D[:])
 	// TODO: [210/220/230] extrusion direction (only need 2d maybe later)
 	r.ConsumeCoordinates(coords3D[:])
 
@@ -250,21 +250,21 @@ func ParseAcDbHatch(r *Reader, hatch *entity.Hatch) error {
 		r.ConsumeNumber(92, DEC_RADIX, "boundary path type flag", &pathTypeFlag)
 
 		if pathTypeFlag&2 == 2 {
-            polyline := entity.NewPolyline()
+			polyline := entity.NewPolyline()
 
-            // maybe consider?
+			// maybe consider?
 			r.ConsumeNumber(72, DEC_RADIX, "has bulge flag", nil)
 			r.ConsumeNumber(73, DEC_RADIX, "is closed flag", nil)
 			r.ConsumeNumber(93, DEC_RADIX, "number of polyline vertices", &polyline.Vertices)
 
 			for vertex := uint64(0); vertex < polyline.Vertices; vertex++ {
-			    coord2D, bulge := [2]float64{0.0, 0.0}, 0.0
+				coord2D, bulge := [2]float64{0.0, 0.0}, 0.0
 				r.ConsumeCoordinates(coord2D[:])
 				r.ConsumeFloatIf(42, "expected bulge", &bulge)
-                polyline.AppendPLine(coord2D, bulge)
+				polyline.AppendPLine(coord2D, bulge)
 			}
 
-            hatch.Polylines = append(hatch.Polylines, polyline)
+			hatch.Polylines = append(hatch.Polylines, polyline)
 		} else {
 			edges, edgeType := uint64(0), uint64(0)
 
@@ -275,19 +275,19 @@ func ParseAcDbHatch(r *Reader, hatch *entity.Hatch) error {
 
 				switch edgeType {
 				case 1: // Line
-                    line := entity.NewLine()
-                    r.ConsumeCoordinates(line.Src[:2])
-                    r.ConsumeCoordinates(line.Dst[:2])
-                    hatch.Lines = append(hatch.Lines, line)
+					line := entity.NewLine()
+					r.ConsumeCoordinates(line.Src[:2])
+					r.ConsumeCoordinates(line.Dst[:2])
+					hatch.Lines = append(hatch.Lines, line)
 				case 2: // Circular arc
-                    arc := entity.NewArc()
-                    r.ConsumeCoordinates(arc.Circle.Coordinates[:2])
+					arc := entity.NewArc()
+					r.ConsumeCoordinates(arc.Circle.Coordinates[:2])
 					r.ConsumeFloat(40, "radius", &arc.Circle.Radius)
 
 					r.ConsumeFloat(50, "start angle", &arc.StartAngle)
 					r.ConsumeFloat(51, "end angle", &arc.EndAngle)
 					r.ConsumeNumber(73, DEC_RADIX, "is counterclockwise", &arc.Counterclockwise)
-                    hatch.Arcs = append(hatch.Arcs, arc)
+					hatch.Arcs = append(hatch.Arcs, arc)
 				case 3: // Elliptic arc
 					log.Fatal("hatch elliptic arc")
 				case 4: // Spine
@@ -318,8 +318,8 @@ func ParseAcDbHatch(r *Reader, hatch *entity.Hatch) error {
 	r.ConsumeNumberIf(78, DEC_RADIX, "number of pattern definition lines", &patternDefinitions)
 
 	for i := uint64(0); i < patternDefinitions; i++ {
-        base, offset, angle := [2]float64{0.0, 0.0}, [2]float64{0.0, 0.0}, 0.0
-        dashes, dashLen := []float64{}, 0.0
+		base, offset, angle := [2]float64{0.0, 0.0}, [2]float64{0.0, 0.0}, 0.0
+		dashes, dashLen := []float64{}, 0.0
 
 		r.ConsumeFloat(53, "pattern line angle", &angle)
 		r.ConsumeFloat(43, "pattern line base point x", &base[0])
@@ -332,10 +332,10 @@ func ParseAcDbHatch(r *Reader, hatch *entity.Hatch) error {
 
 		for j := uint64(0); j < dashLengths; j++ {
 			r.ConsumeFloat(49, "dash length", &dashLen)
-            dashes = append(dashes, dashLen)
+			dashes = append(dashes, dashLen)
 		}
 
-        hatch.AppendPatternLine(angle, base, offset, dashes)
+		hatch.AppendPatternLine(angle, base, offset, dashes)
 	}
 
 	r.ConsumeFloatIf(47, "pixel size used to determine density to perform ray casting", nil)
@@ -377,8 +377,8 @@ func ParseAcDbEllipse(r *Reader, ellipse *entity.Ellipse) error {
 		return r.Err()
 	}
 
-    r.ConsumeCoordinates(ellipse.Center[:]) // Center point
-    r.ConsumeCoordinates(ellipse.EndPoint[:]) // Endpoint of major axis
+	r.ConsumeCoordinates(ellipse.Center[:])   // Center point
+	r.ConsumeCoordinates(ellipse.EndPoint[:]) // Endpoint of major axis
 
 	// XYZ extrusion direction
 	// optional default = 0, 0, 1
@@ -412,35 +412,31 @@ func ParseAcDbPoint(r *Reader, point *entity.MText) error {
 	return r.Err()
 }
 
-// TODO: implement block reference
-func ParseAcDbBlockReference(r *Reader, reference *entity.MText) error {
+func ParseAcDbBlockReference(r *Reader, insert *entity.Insert) error {
 	if r.AssertNextLine("AcDbBlockReference") != nil {
 		return r.Err()
 	}
 
-	coord3D := [3]float64{0.0, 0.0, 0.0}
+	r.ConsumeNumberIf(66, DEC_RADIX, "attributes follow", &insert.AttributesFollow)
+	r.ConsumeStr(&insert.BlockName)
+	r.ConsumeCoordinates(insert.Coordinates[:])
 
-	// Variable attributes-follow flag default = 0
-	r.ConsumeStrIf(66, nil)
-	r.ConsumeStr(nil)                // Block name
-	r.ConsumeCoordinates(coord3D[:]) // insertion point
+	r.ConsumeFloatIf(41, "x scale factor", &insert.Scale[0])
+	r.ConsumeFloatIf(42, "y scale factor", &insert.Scale[1])
+	r.ConsumeFloatIf(43, "z scale factor", &insert.Scale[2])
 
-	r.ConsumeFloatIf(41, "x scale factor default 1", nil)
-	r.ConsumeFloatIf(42, "x scale factor default 1", nil)
-	r.ConsumeFloatIf(43, "x scale factor default 1", nil)
+	r.ConsumeFloatIf(50, "rotation angle", &insert.Rotation)
+	r.ConsumeNumberIf(70, DEC_RADIX, "column count", &insert.ColCount)
+	r.ConsumeNumberIf(71, DEC_RADIX, "row count", &insert.RowCount)
 
-	r.ConsumeFloatIf(50, "rotation angle default 0", nil)
-	r.ConsumeFloatIf(70, "column count default 1", nil)
-	r.ConsumeFloatIf(71, "row count default 1", nil)
-
-	r.ConsumeFloatIf(44, "column spacing default 0", nil)
-	r.ConsumeFloatIf(45, "row spacing default 0", nil)
+	r.ConsumeFloatIf(44, "column spacing", &insert.ColSpacing)
+	r.ConsumeFloatIf(45, "row spacing", &insert.RowSpacing)
 
 	// optional default = 0, 0, 1
 	// XYZ extrusion direction
+	coord3D := [3]float64{0.0, 0.0, 0.0}
 	r.ConsumeCoordinatesIf(210, coord3D[:])
 
-	_ = reference
 	return r.Err()
 }
 
@@ -481,6 +477,16 @@ func ParseAcDbAttribute(r *Reader, attrib *entity.Attrib) error {
 
 	r.ConsumeCoordinatesIf(11, attrib.Text.Vector[:])
 	r.ConsumeCoordinatesIf(210, attrib.Text.Vector[:])
+
+	// TODO: parse XDATA
+	code, err := r.PeekCode()
+	for code != 0 && err == nil {
+		r.ConsumeStr(nil)
+		code, err = r.PeekCode()
+	}
+	if err != nil {
+		return err
+	}
 
 	return r.Err()
 }
