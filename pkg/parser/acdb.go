@@ -445,14 +445,12 @@ func ParseAcDbBlockBegin(r *Reader, block *blocks.Block) error {
 		return r.Err()
 	}
 
-	r.ConsumeStr(nil) // [2] block name
-	r.ConsumeNumber(70, DEC_RADIX, "block-type flag", nil)
+	r.ConsumeStr(&block.BlockName) // [2] block name
+	r.ConsumeNumber(70, DEC_RADIX, "block-type flag", &block.Flag)
+	r.ConsumeCoordinates(block.Coordinates[:])
 
-	coords3D := [3]float64{0.0, 0.0, 0.0}
-	r.ConsumeCoordinates(coords3D[:])
-
-	r.ConsumeStr(nil) // [3] block name
-	r.ConsumeStr(nil) // [1] Xref path name
+	r.ConsumeStr(&block.OtherName) // [3] block name
+	r.ConsumeStr(&block.XRefPath)  // [1] Xref path name
 
 	return r.Err()
 }

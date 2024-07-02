@@ -177,10 +177,13 @@ func ParseInsert(r *Reader, entities entity.Entities) error {
 	for insert.AttributesFollow == 1 && r.ScanDxfLine() {
 		switch r.DxfLine().Line {
 		case "ATTRIB":
-			WrapEntity(ParseAttrib, r, entities)
+			if ParseAttrib(r, insert) != nil {
+				return r.Err()
+			}
 		case "SEQEND":
 			// marks end of insert
 			ParseAcDbEntity(r, insert.Entity)
+			entities.AppendInsert(insert)
 			return r.Err()
 		default:
 			log.Fatal("[INSERT(", Line, ")] invalid subclass marker ", r.DxfLine().Line)
@@ -191,7 +194,6 @@ func ParseInsert(r *Reader, entities entity.Entities) error {
 		}
 	}
 
-	entities.AppendInsert(insert)
 	return r.Err()
 }
 
@@ -209,7 +211,7 @@ func ParseRegion(r *Reader, entities entity.Entities) error {
 	return r.Err()
 }
 
-func ParseAttrib(r *Reader, entities entity.Entities) error {
+func ParseAttrib(r *Reader, appender entity.AttribAppender) error {
 	attrib := entity.NewAttrib()
 
 	if ParseAcDbEntity(r, attrib.Entity) != nil ||
@@ -218,6 +220,7 @@ func ParseAttrib(r *Reader, entities entity.Entities) error {
 		return r.Err()
 	}
 
+	appender.AppendAttrib(attrib)
 	return r.Err()
 }
 

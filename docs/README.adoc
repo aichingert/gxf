@@ -7,7 +7,7 @@ early stages of a dfx parser
 
 == support
 
-* [ ] header ~
-* [ ] tables -
-* [ ] blocks -
-* [ ] entities ~
+* [ ] header
+* [ ] tables
+* [+] blocks
+* [ ] entities

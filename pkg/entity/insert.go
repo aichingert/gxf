@@ -14,6 +14,7 @@ type Insert struct {
 
 	Scale       [3]float64
 	Coordinates [3]float64
+	Attributes  []*Attrib
 }
 
 func NewInsert() *Insert {

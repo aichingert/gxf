@@ -1,5 +1,9 @@
 package entity
 
+type AttribAppender interface {
+	AppendAttrib(attrib *Attrib)
+}
+
 type Attrib struct {
 	Entity *EntityData
 
@@ -16,4 +20,8 @@ func NewAttrib() *Attrib {
 		Tag:   "",
 		Flags: 0,
 	}
+}
+
+func (i *Insert) AppendAttrib(attrib *Attrib) {
+	i.Attributes = append(i.Attributes, attrib)
 }

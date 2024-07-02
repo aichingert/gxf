@@ -11,10 +11,11 @@ type Block struct {
 	Attdefs []*entity.Attdef
 
 	BlockName string
+	OtherName string
 	EndHandle uint64
 	Flag      uint64
 
-	XrefPath    string
+	XRefPath    string
 	Description string
 	Coordinates [3]float64
 }
@@ -31,7 +32,7 @@ func NewBlock() *Block {
 		EndHandle:    0,
 		Flag:         0,
 
-		XrefPath:    "",
+		XRefPath:    "",
 		Description: "",
 		Coordinates: [3]float64{0.0, 0.0, 0.0},
 	}

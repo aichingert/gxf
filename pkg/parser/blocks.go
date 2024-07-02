@@ -58,8 +58,8 @@ func ParseBlock(r *Reader, dxf *drawing.Dxf) error {
 			WrapEntity(ParseAttdef, r, block.EntitiesData)
 		case "ENDBLK":
 			Wrap(ParseBlockEnd, r, dxf)
-			dxf.Blocks = append(dxf.Blocks, block)
-			return WrappedErr
+			dxf.Blocks[block.BlockName] = block
+			return WrappedEntityErr
 		default:
 			log.Fatal("[Block(", Line, ")] invalid subclass ", r.DxfLine().Line)
 		}
