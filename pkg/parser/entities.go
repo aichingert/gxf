@@ -38,8 +38,12 @@ func ParseEntities(r *Reader, dxf *drawing.Dxf) error {
 			WrapEntity(ParseHatch, r, dxf.EntitiesData)
 		case "ELLIPSE":
 			WrapEntity(ParseEllipse, r, dxf.EntitiesData)
+        case "SOLID":
+			WrapEntity(ParseSolid, r, dxf.EntitiesData)
 		case "POINT":
 			WrapEntity(ParsePoint, r, dxf.EntitiesData)
+        case "DIMENSION":
+			WrapEntity(ParseDimension, r, dxf.EntitiesData)
 		case "INSERT":
 			WrapEntity(ParseInsert, r, dxf.EntitiesData)
 		case "ENDSEC":
@@ -48,6 +52,39 @@ func ParseEntities(r *Reader, dxf *drawing.Dxf) error {
 			log.Println("[ENTITIES] ", Line, ": ", r.DxfLine().Line)
 			return NewParseError("unknown entity")
 		}
+
+        hack, _ := r.PeekLine()
+        if hack == "ADE" || hack == "ACADMAP-ARCH" {
+            r.ConsumeStr(nil)
+            r.ConsumeStrIf(1005, nil)
+            r.ConsumeStr(nil)
+            peek, _ := r.PeekCode()
+            for peek != 1002 {
+                r.ConsumeStr(nil)
+                peek, _ = r.PeekCode()
+            }
+            r.ConsumeStr(nil)
+            peek, _ = r.PeekCode()
+            if peek == 1002 {
+                r.ConsumeStr(nil)
+                peek, _ = r.PeekCode()
+                for peek != 1002 {
+                    r.ConsumeStr(nil)
+                    peek, _ = r.PeekCode()
+                }
+                r.ConsumeStr(nil)
+            }
+            peek, _ = r.PeekCode()
+            if peek == 1002 {
+                r.ConsumeStr(nil)
+                peek, _ = r.PeekCode()
+                for peek != 1002 {
+                    r.ConsumeStr(nil)
+                    peek, _ = r.PeekCode()
+                }
+                r.ConsumeStr(nil)
+            }
+        }
 
 		if WrappedEntityErr != nil {
 			return WrappedEntityErr
@@ -154,6 +191,17 @@ func ParseEllipse(r *Reader, entities entity.Entities) error {
 	return r.Err()
 }
 
+func ParseSolid(r *Reader, entities entity.Entities) error {
+    solid := entity.NewMText()
+
+    if ParseAcDbEntity(r, solid.Entity) != nil ||
+        ParseAcDbTrace(r, solid) != nil {
+        return r.Err()
+    }
+
+    return r.Err()
+}
+
 // TODO: create entity point
 func ParsePoint(r *Reader, entities entity.Entities) error {
 	point := entity.NewMText()
@@ -193,6 +241,20 @@ func ParseInsert(r *Reader, entities entity.Entities) error {
 			return WrappedEntityErr
 		}
 	}
+
+	return r.Err()
+}
+
+func ParseDimension(r *Reader, entities entity.Entities) error {
+	throwAway := entity.NewAttdef()
+
+	if ParseAcDbEntity(r, throwAway.Entity) != nil ||
+		ParseAcDbDimension(r, throwAway) != nil {
+		return r.Err()
+	}
+
+	r.ConsumeNumberIf(290, DEC_RADIX, "not documented", nil)
+	r.ConsumeStrIf(2, nil)
 
 	return r.Err()
 }
