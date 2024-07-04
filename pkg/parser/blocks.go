@@ -43,10 +43,10 @@ func ParseBlock(r *Reader, dxf *drawing.Dxf) error {
 		case "LINE":
 			WrapEntity(ParseLine, r, block.EntitiesData)
 		case "LWPOLYLINE":
-			WrapEntity(ParsePolyline, r, block.EntitiesData)
-        case "POINT":
+			WrapEntity(ParseLwPolyline, r, block.EntitiesData)
+		case "POINT":
 			WrapEntity(ParsePoint, r, block.EntitiesData)
-        case "TEXT":
+		case "TEXT":
 			WrapEntity(ParseText, r, block.EntitiesData)
 		case "MTEXT":
 			WrapEntity(ParseMText, r, block.EntitiesData)
@@ -56,8 +56,8 @@ func ParseBlock(r *Reader, dxf *drawing.Dxf) error {
 			WrapEntity(ParseCircle, r, block.EntitiesData)
 		case "HATCH":
 			WrapEntity(ParseHatch, r, block.EntitiesData)
-        case "DIMENSION":
-            WrapEntity(ParseDimension, r, block.EntitiesData)
+		case "DIMENSION":
+			WrapEntity(ParseDimension, r, block.EntitiesData)
 		case "REGION":
 			WrapEntity(ParseRegion, r, block.EntitiesData)
 		case "ATTDEF":

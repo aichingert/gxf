@@ -296,30 +296,30 @@ func (r *Reader) PeekLine() (string, error) {
 		return "", r.err
 	}
 
-    var line []byte
+	var line []byte
 
-    if r.err != nil {
+	if r.err != nil {
 		return "", r.err
 	}
 
-    src, dst := -1, -1
-    for i := 1; src == -1 || dst == -1; i++ {
-        line, r.err = r.reader.Peek(i)
+	src, dst := -1, -1
+	for i := 1; src == -1 || dst == -1; i++ {
+		line, r.err = r.reader.Peek(i)
 
-        if r.err != nil {
-            return "", r.err
-        }
+		if r.err != nil {
+			return "", r.err
+		}
 
-        if line[i - 1] == '\n' {
-            if src == -1 {
-                src = i
-            } else {
-                dst = i
-            }
-        }
-    }
+		if line[i-1] == '\n' {
+			if src == -1 {
+				src = i
+			} else {
+				dst = i
+			}
+		}
+	}
 
-	return string(line[src:dst - 2]), r.err
+	return string(line[src : dst-2]), r.err
 }
 
 func (r *Reader) consumeCode() (uint16, error) {

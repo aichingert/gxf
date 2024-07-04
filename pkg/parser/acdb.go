@@ -52,7 +52,7 @@ func ParseAcDbLine(r *Reader, line *entity.Line) error {
 		return r.Err()
 	}
 
-    r.ConsumeFloatIf(39, "thickness", nil)
+	r.ConsumeFloatIf(39, "thickness", nil)
 	r.ConsumeCoordinates(line.Src[:])
 	r.ConsumeCoordinates(line.Dst[:])
 
@@ -68,7 +68,7 @@ func ParseAcDbPolyline(r *Reader, polyline *entity.Polyline) error {
 	r.ConsumeNumber(70, DEC_RADIX, "polyline flag", &polyline.Flag)
 
 	if !r.ConsumeFloatIf(43, "line width for each vertex", nil) {
-        //r.ConsumeFloat(43, "", nil)
+		//r.ConsumeFloat(43, "", nil)
 		//log.Fatal("[ENTITIES(", Line, ")] TODO: implement line width for each vertex")
 	}
 
@@ -87,28 +87,31 @@ func ParseAcDbPolyline(r *Reader, polyline *entity.Polyline) error {
 		polyline.AppendPLine(coords2D, bulge)
 	}
 
-    hack, _ := r.PeekLine()
-    if hack == "ADE" || hack == "ACADMAP-ARCH" {
-        r.ConsumeStr(nil)
-        r.ConsumeStr(nil)
-        peek, _ := r.PeekCode()
-        for peek != 1002 {
-            r.ConsumeStr(nil)
-            peek, _ = r.PeekCode()
-        }
-        r.ConsumeStr(nil)
+	return r.Err()
+}
 
-        peek, _ = r.PeekCode()
-        if peek == 1002 {
-            r.ConsumeStr(nil)
-            peek, _ = r.PeekCode()
-            for peek != 1002 {
-                r.ConsumeStr(nil)
-                peek, _ = r.PeekCode()
-            }
-            r.ConsumeStr(nil)
-        }
-    }
+func ParseAcDb2dPolyline(r *Reader, polyline *entity.Polyline) error {
+	if r.AssertNextLine("AcDb2dPolyline") != nil {
+		return r.Err()
+	}
+
+	r.ConsumeNumberIf(66, DEC_RADIX, "obsolete", nil)
+
+	coords3D := [3]float64{0.0, 0.0, 0.0}
+	r.ConsumeCoordinates(coords3D[:])
+
+	r.ConsumeFloatIf(39, "thickness", nil)
+	r.ConsumeNumberIf(70, DEC_RADIX, "polyline flag", nil)
+
+	r.ConsumeFloatIf(40, "start width default 0", nil)
+	r.ConsumeFloatIf(41, "end width default 0", nil)
+	r.ConsumeFloatIf(71, "mesh M vertex count", nil)
+	r.ConsumeFloatIf(72, "mesh N vertex count", nil)
+	r.ConsumeFloatIf(73, "smooth surface M density", nil)
+	r.ConsumeFloatIf(74, "smooth surface N density", nil)
+	r.ConsumeNumberIf(75, DEC_RADIX, "curves and smooth surface default 0", nil)
+
+	r.ConsumeCoordinatesIf(210, coords3D[:])
 
 	return r.Err()
 }
@@ -426,12 +429,12 @@ func ParseAcDbTrace(r *Reader, point *entity.MText) error {
 
 	r.ConsumeCoordinates(coord3D[:])
 	r.ConsumeCoordinates(coord3D[:])
-    r.ConsumeFloat(12, "", nil)
-    r.ConsumeFloat(22, "", nil)
-    r.ConsumeFloat(32, "", nil)
-    r.ConsumeFloat(13, "", nil)
-    r.ConsumeFloat(23, "", nil)
-    r.ConsumeFloat(33, "", nil)
+	r.ConsumeFloat(12, "", nil)
+	r.ConsumeFloat(22, "", nil)
+	r.ConsumeFloat(32, "", nil)
+	r.ConsumeFloat(13, "", nil)
+	r.ConsumeFloat(23, "", nil)
+	r.ConsumeFloat(33, "", nil)
 
 	r.ConsumeNumberIf(39, DEC_RADIX, "thickness", nil)
 
@@ -443,7 +446,34 @@ func ParseAcDbTrace(r *Reader, point *entity.MText) error {
 	return r.Err()
 }
 
+// TODO: implement entity entity.Vertex
+func ParseAcDbVertex(r *Reader, vertex *entity.MText) error {
+	if r.AssertNextLine("AcDbVertex") != nil {
+		return r.Err()
+	}
 
+	next := ""
+	r.ConsumeStr(&next) // AcDb2dVertex or AcDb3dPolylineVertex
+
+	coord3D := [3]float64{0.0, 0.0, 0.0}
+
+	r.ConsumeCoordinates(coord3D[:])
+	r.ConsumeFloatIf(40, "starting width", nil)
+	r.ConsumeFloatIf(41, "end width", nil)
+	r.ConsumeFloatIf(42, "bulge", nil)
+
+	r.ConsumeNumberIf(70, DEC_RADIX, "vertex flags", nil)
+	r.ConsumeFloatIf(50, "curve fit tangent direction", nil)
+
+	r.ConsumeFloatIf(71, "polyface mesh vertex index", nil)
+	r.ConsumeFloatIf(72, "polyface mesh vertex index", nil)
+	r.ConsumeFloatIf(73, "polyface mesh vertex index", nil)
+	r.ConsumeFloatIf(74, "polyface mesh vertex index", nil)
+
+	r.ConsumeNumberIf(91, DEC_RADIX, "vertex identifier", nil)
+
+	return r.Err()
+}
 
 // TODO: implement entity entity.Point
 func ParseAcDbPoint(r *Reader, point *entity.MText) error {
@@ -568,49 +598,63 @@ func ParseAcDbDimension(r *Reader, attdef *entity.Attdef) error {
 		return r.Err()
 	}
 
-    r.ConsumeNumber(280, DEC_RADIX, "version number", nil)
-    r.ConsumeStr(nil) // name of the block
+	r.ConsumeNumber(280, DEC_RADIX, "version number", nil)
+	r.ConsumeStr(nil) // name of the block
 
-    coords3D := [3]float64{0.0, 0.0, 0.0}
+	coords3D := [3]float64{0.0, 0.0, 0.0}
 
-    r.ConsumeCoordinates(coords3D[:])
-    r.ConsumeCoordinates(coords3D[:])
+	r.ConsumeCoordinates(coords3D[:])
+	r.ConsumeCoordinates(coords3D[:])
 
-    r.ConsumeNumber(70, DEC_RADIX, "dimension type", nil)
-    r.ConsumeNumber(71, DEC_RADIX, "attachment point", nil)
-    r.ConsumeNumberIf(72, DEC_RADIX, "dimension text-line spacing", nil)
+	r.ConsumeNumber(70, DEC_RADIX, "dimension type", nil)
+	r.ConsumeNumber(71, DEC_RADIX, "attachment point", nil)
+	r.ConsumeNumberIf(72, DEC_RADIX, "dimension text-line spacing", nil)
 
-    r.ConsumeNumberIf(41, DEC_RADIX, "dimension text-line factor", nil)
-    r.ConsumeNumberIf(42, DEC_RADIX, "actual measurement", nil)
+	r.ConsumeNumberIf(41, DEC_RADIX, "dimension text-line factor", nil)
+	r.ConsumeNumberIf(42, DEC_RADIX, "actual measurement", nil)
 
-    r.ConsumeNumberIf(73, DEC_RADIX, "not documented", nil)
-    r.ConsumeNumberIf(74, DEC_RADIX, "not documented", nil)
-    r.ConsumeNumberIf(75, DEC_RADIX, "not documented", nil)
+	r.ConsumeNumberIf(73, DEC_RADIX, "not documented", nil)
+	r.ConsumeNumberIf(74, DEC_RADIX, "not documented", nil)
+	r.ConsumeNumberIf(75, DEC_RADIX, "not documented", nil)
 
-    r.ConsumeStrIf(1, nil) // dimension text
-    r.ConsumeFloatIf(53, "roation angle of the dimension", nil)
-    r.ConsumeFloatIf(51, "horizontal direction", nil)
+	r.ConsumeStrIf(1, nil) // dimension text
+	r.ConsumeFloatIf(53, "roation angle of the dimension", nil)
+	r.ConsumeFloatIf(51, "horizontal direction", nil)
 
-    r.ConsumeCoordinatesIf(210, coords3D[:])
-    r.ConsumeStrIf(3, nil) // [3] dimension style name
+	r.ConsumeCoordinatesIf(210, coords3D[:])
+	r.ConsumeStrIf(3, nil) // [3] dimension style name
 
+	dim := ""
+	r.ConsumeStr(&dim)
 
-    // should be acdb3pointangulardimension
-	if r.AssertNextLine("AcDb2LineAngularDimension") != nil {
-        log.Println("FAILED")
-        return r.Err()
-    }
+	switch dim {
+	// should be acdb3pointangulardimension
+	case "AcDb2LineAngularDimension":
+		r.ConsumeFloat(13, "point for linear and angular dimension", nil)
+		r.ConsumeFloat(23, "point for linear and angular dimension", nil)
+		r.ConsumeFloat(33, "point for linear and angular dimension", nil)
+		r.ConsumeFloat(14, "point for linear and angular dimension", nil)
+		r.ConsumeFloat(24, "point for linear and angular dimension", nil)
+		r.ConsumeFloat(34, "point for linear and angular dimension", nil)
+		r.ConsumeFloat(15, "point for diameter, radius, and angular dimension", nil)
+		r.ConsumeFloat(25, "point for diameter, radius, and angular dimension", nil)
+		r.ConsumeFloat(35, "point for diameter, radius, and angular dimension", nil)
+	case "AcDbAlignedDimension":
+		r.ConsumeFloatIf(12, "insertion point for clones of a dimension", nil)
+		r.ConsumeFloatIf(22, "insertion point for clones of a dimension", nil)
+		r.ConsumeFloatIf(32, "insertion point for clones of a dimension", nil)
+		r.ConsumeFloat(13, "definition point for linear and angular dimensions", nil)
+		r.ConsumeFloat(23, "definition point for linear and angular dimensions", nil)
+		r.ConsumeFloat(33, "definition point for linear and angular dimensions", nil)
+		r.ConsumeFloat(14, "definition point for linear and angular dimensions", nil)
+		r.ConsumeFloat(24, "definition point for linear and angular dimensions", nil)
+		r.ConsumeFloat(34, "definition point for linear and angular dimensions", nil)
+		r.ConsumeFloatIf(50, "angle of rotated, horizontal, or vertical dimensions", nil)
+		r.ConsumeFloatIf(52, "oblique angle", nil)
+		r.ConsumeStrIf(100, nil) // subclass marker AcDbRotatedDimension
+	default:
+		log.Fatal(dim)
+	}
 
-    r.ConsumeFloat(13, "point for linear and angular dimension", nil)
-    r.ConsumeFloat(23, "point for linear and angular dimension", nil)
-    r.ConsumeFloat(33, "point for linear and angular dimension", nil)
-    r.ConsumeFloat(14, "point for linear and angular dimension", nil)
-    r.ConsumeFloat(24, "point for linear and angular dimension", nil)
-    r.ConsumeFloat(34, "point for linear and angular dimension", nil)
-    r.ConsumeFloat(15, "point for diameter, radius, and angular dimension", nil)
-    r.ConsumeFloat(25, "point for diameter, radius, and angular dimension", nil)
-    r.ConsumeFloat(35, "point for diameter, radius, and angular dimension", nil)
-
-    return r.Err()
+	return r.Err()
 }
-

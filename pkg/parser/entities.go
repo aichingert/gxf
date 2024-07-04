@@ -24,8 +24,10 @@ func ParseEntities(r *Reader, dxf *drawing.Dxf) error {
 		switch r.DxfLine().Line {
 		case "LINE":
 			WrapEntity(ParseLine, r, dxf.EntitiesData)
-		case "LWPOLYLINE":
+		case "POLYLINE":
 			WrapEntity(ParsePolyline, r, dxf.EntitiesData)
+		case "LWPOLYLINE":
+			WrapEntity(ParseLwPolyline, r, dxf.EntitiesData)
 		case "ARC":
 			WrapEntity(ParseArc, r, dxf.EntitiesData)
 		case "CIRCLE":
@@ -38,11 +40,11 @@ func ParseEntities(r *Reader, dxf *drawing.Dxf) error {
 			WrapEntity(ParseHatch, r, dxf.EntitiesData)
 		case "ELLIPSE":
 			WrapEntity(ParseEllipse, r, dxf.EntitiesData)
-        case "SOLID":
+		case "SOLID":
 			WrapEntity(ParseSolid, r, dxf.EntitiesData)
 		case "POINT":
 			WrapEntity(ParsePoint, r, dxf.EntitiesData)
-        case "DIMENSION":
+		case "DIMENSION":
 			WrapEntity(ParseDimension, r, dxf.EntitiesData)
 		case "INSERT":
 			WrapEntity(ParseInsert, r, dxf.EntitiesData)
@@ -53,38 +55,11 @@ func ParseEntities(r *Reader, dxf *drawing.Dxf) error {
 			return NewParseError("unknown entity")
 		}
 
-        hack, _ := r.PeekLine()
-        if hack == "ADE" || hack == "ACADMAP-ARCH" {
-            r.ConsumeStr(nil)
-            r.ConsumeStrIf(1005, nil)
-            r.ConsumeStr(nil)
-            peek, _ := r.PeekCode()
-            for peek != 1002 {
-                r.ConsumeStr(nil)
-                peek, _ = r.PeekCode()
-            }
-            r.ConsumeStr(nil)
-            peek, _ = r.PeekCode()
-            if peek == 1002 {
-                r.ConsumeStr(nil)
-                peek, _ = r.PeekCode()
-                for peek != 1002 {
-                    r.ConsumeStr(nil)
-                    peek, _ = r.PeekCode()
-                }
-                r.ConsumeStr(nil)
-            }
-            peek, _ = r.PeekCode()
-            if peek == 1002 {
-                r.ConsumeStr(nil)
-                peek, _ = r.PeekCode()
-                for peek != 1002 {
-                    r.ConsumeStr(nil)
-                    peek, _ = r.PeekCode()
-                }
-                r.ConsumeStr(nil)
-            }
-        }
+		peek, err := r.PeekCode()
+		for err == nil && peek != 0 {
+			r.ConsumeStr(nil)
+			peek, err = r.PeekCode()
+		}
 
 		if WrappedEntityErr != nil {
 			return WrappedEntityErr
@@ -106,7 +81,45 @@ func ParseLine(r *Reader, entities entity.Entities) error {
 	return r.Err()
 }
 
+// TODO: create polyline and lwpolyline
 func ParsePolyline(r *Reader, entities entity.Entities) error {
+	polyline := entity.NewPolyline()
+
+	if ParseAcDbEntity(r, polyline.Entity) != nil ||
+		ParseAcDb2dPolyline(r, polyline) != nil {
+		return r.Err()
+	}
+
+	peek, err := r.PeekCode()
+	for err == nil && peek != 0 {
+		r.ConsumeStr(nil)
+		peek, err = r.PeekCode()
+	}
+
+	for r.ScanDxfLine() {
+		switch r.DxfLine().Line {
+		case "VERTEX":
+			WrapEntity(ParseVertex, r, entities)
+		case "SEQEND":
+			// marks end of insert
+			ParseAcDbEntity(r, polyline.Entity)
+			return r.Err()
+		default:
+			log.Fatal("[", Line, "] Invalid entity: ", r.DxfLine().Line)
+		}
+
+		peek, err := r.PeekCode()
+		for err == nil && peek != 0 {
+			r.ConsumeStr(nil)
+			peek, err = r.PeekCode()
+		}
+	}
+
+	//entities.AppendPolyline(polyline)
+	return r.Err()
+}
+
+func ParseLwPolyline(r *Reader, entities entity.Entities) error {
 	polyline := entity.NewPolyline()
 
 	if ParseAcDbEntity(r, polyline.Entity) != nil ||
@@ -192,14 +205,26 @@ func ParseEllipse(r *Reader, entities entity.Entities) error {
 }
 
 func ParseSolid(r *Reader, entities entity.Entities) error {
-    solid := entity.NewMText()
+	solid := entity.NewMText()
 
-    if ParseAcDbEntity(r, solid.Entity) != nil ||
-        ParseAcDbTrace(r, solid) != nil {
-        return r.Err()
-    }
+	if ParseAcDbEntity(r, solid.Entity) != nil ||
+		ParseAcDbTrace(r, solid) != nil {
+		return r.Err()
+	}
 
-    return r.Err()
+	return r.Err()
+}
+
+// TODO: create vertex
+func ParseVertex(r *Reader, entities entity.Entities) error {
+	vertex := entity.NewMText()
+
+	if ParseAcDbEntity(r, vertex.Entity) != nil ||
+		ParseAcDbVertex(r, vertex) != nil {
+		return r.Err()
+	}
+
+	return r.Err()
 }
 
 // TODO: create entity point
