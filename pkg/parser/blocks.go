@@ -36,7 +36,12 @@ func ParseBlock(r *Reader, dxf *drawing.Dxf) error {
 		return r.Err()
 	}
 
-    ParseEntities(r, block.EntitiesData)
+    
+
+    if err := ParseEntities(r, block.EntitiesData); err != nil {
+        return err
+    }
+
     Wrap(ParseBlockEnd, r, dxf)
 
     dxf.Blocks[block.BlockName] = block

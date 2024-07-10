@@ -2,6 +2,7 @@ package parser
 
 import (
 	"log"
+    "fmt"
 
 	"github.com/aichingert/dxf/pkg/entity"
 )
@@ -47,6 +48,8 @@ func ParseEntities(r *Reader, entities entity.Entities) error {
 			WrapEntity(ParseDimension, r, entities)
         case "REGION":
             WrapEntity(ParseRegion, r, entities)
+        case "VIEWPORT":
+            WrapEntity(ParseViewport, r, entities)
         case "ATTDEF":
             WrapEntity(ParseAttdef, r, entities)
 		case "INSERT":
@@ -56,7 +59,7 @@ func ParseEntities(r *Reader, entities entity.Entities) error {
 			return r.Err()
 		default:
 			log.Println("[ENTITIES] ", Line, ": ", r.DxfLine().Line)
-			return NewParseError("unknown entity")
+            return NewParseError(fmt.Sprintf("unknown entity: %s", r.DxfLine().Line))
 		}
 
 		peek, err := r.PeekCode()
@@ -298,6 +301,17 @@ func ParseRegion(r *Reader, entities entity.Entities) error {
 
 	r.ConsumeNumberIf(290, DEC_RADIX, "not documented", nil)
 	r.ConsumeStrIf(2, nil)
+
+	return r.Err()
+}
+
+func ParseViewport(r *Reader, entities entity.Entities) error {
+	throwAway := entity.NewMText()
+
+	if ParseAcDbEntity(r, throwAway.Entity) != nil ||
+		ParseAcDbViewport(r, throwAway) != nil {
+		return r.Err()
+	}
 
 	return r.Err()
 }

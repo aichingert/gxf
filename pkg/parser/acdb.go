@@ -658,3 +658,100 @@ func ParseAcDbDimension(r *Reader, attdef *entity.Attdef) error {
 
 	return r.Err()
 }
+
+func ParseAcDbViewport(r *Reader, viewport *entity.MText) error {
+    if r.AssertNextLine("AcDbViewport") != nil {
+		return r.Err()
+	}
+
+    coords3D := [3]float64{0,0,0}
+    r.ConsumeCoordinates(coords3D[:])
+
+    r.ConsumeFloat(40, "width in paper space units", nil)
+    r.ConsumeFloat(41, "height in paper space units", nil)
+
+    r.ConsumeFloat(68, "viewport status field", nil)
+    // => -1 0 On, 0 = Off
+
+    r.ConsumeNumber(69, DEC_RADIX, "viewport id", nil)
+
+    r.ConsumeFloat(12, "center point x", nil)
+    r.ConsumeFloat(22, "center point y", nil)
+    r.ConsumeFloat(13, "snap base point x", nil)
+    r.ConsumeFloat(23, "snap base point y", nil)
+    r.ConsumeFloat(14, "snap spacing x", nil)
+    r.ConsumeFloat(24, "snap spacing y", nil)
+    r.ConsumeFloat(15, "grid spacing x", nil)
+    r.ConsumeFloat(25, "grid spacing y", nil)
+
+
+    r.ConsumeFloat(16, "view direction vector x", nil)
+    r.ConsumeFloat(26, "view direction vector y", nil)
+    r.ConsumeFloat(36, "view direction vector z", nil)
+
+    r.ConsumeFloat(17, "view target point y", nil)
+    r.ConsumeFloat(27, "view target point x", nil)
+    r.ConsumeFloat(37, "view target point z", nil)
+
+    r.ConsumeFloat(42, "perspective lens length", nil)
+    r.ConsumeFloat(43, "front clip plane z value", nil)
+    r.ConsumeFloat(44, "back clip plane z value", nil)
+    r.ConsumeFloat(45, "view height", nil)
+    r.ConsumeFloat(50, "snap angle", nil)
+    r.ConsumeFloat(51, "view twist angle", nil)
+
+    r.ConsumeFloat(72, "circle zoom percent", nil)
+
+    code, err := r.PeekCode()
+    for err != nil && code == 331 {
+        r.ConsumeNumber(331, DEC_RADIX, "frozen layer object Id/handle", nil)
+    }
+
+    r.ConsumeNumber(90, HEX_RADIX, "viewport status bit-coded flags", nil)
+    r.ConsumeNumberIf(340, DEC_RADIX, "hard-pointer id/handle to entity that serves as the viewports clipping boundary", nil)
+    r.ConsumeStr(nil) // [1]
+    r.ConsumeNumber(281, DEC_RADIX, "render mode", nil)
+    r.ConsumeNumber(71, DEC_RADIX, "ucs per viewport flag", nil)
+    r.ConsumeNumber(74, DEC_RADIX, "display ucs icon at ucs origin flag", nil)
+    r.ConsumeFloat(110, "ucs origin x", nil)
+    r.ConsumeFloat(120, "ucs origin y", nil)
+    r.ConsumeFloat(130, "ucs origin z", nil)
+
+    r.ConsumeFloat(111, "ucs x-axis x", nil)
+    r.ConsumeFloat(121, "ucs x-axis y", nil)
+    r.ConsumeFloat(131, "ucs x-axis z", nil)
+
+    r.ConsumeFloat(112, "ucs y-axis x", nil)
+    r.ConsumeFloat(122, "ucs y-axis y", nil)
+    r.ConsumeFloat(132, "ucs y-axis z", nil)
+
+
+
+    r.ConsumeNumberIf(345, DEC_RADIX, "id/handle of AcDbUCSTableRecord if UCS is a named ucs", nil)
+    r.ConsumeNumberIf(346, DEC_RADIX, "id/handle of AcDbUCSTableRecord of base ucs", nil)
+    r.ConsumeNumber(79, DEC_RADIX, "Orthographic type of UCS", nil)
+    r.ConsumeFloat(146, "elevation", nil)
+    r.ConsumeNumber(170, DEC_RADIX, "ShadePlot mode", nil)
+    r.ConsumeNumber(61, DEC_RADIX, "frequency of major grid lines compared to minor grid lines", nil)
+
+    r.ConsumeNumberIf(332, DEC_RADIX, "background id/handle", nil)
+    r.ConsumeNumberIf(333, DEC_RADIX, "shade plot id/handle", nil)
+    r.ConsumeNumberIf(348, DEC_RADIX, "visual style id/handle", nil)
+
+    r.ConsumeNumber(292, DEC_RADIX, "default lighting type on when no use lights are specified", nil)
+    r.ConsumeNumber(282, DEC_RADIX, "default lighting type", nil)
+    r.ConsumeFloat(141, "view brightness", nil)
+    r.ConsumeFloat(142, "view contrast", nil)
+
+    r.ConsumeFloatIf(63, "ambient light color only if not black", nil)
+    r.ConsumeFloatIf(421, "ambient light color only if not black", nil)
+    r.ConsumeFloatIf(431, "ambient light color only if not black", nil)
+
+    r.ConsumeNumberIf(361, DEC_RADIX, "sun id/handle", nil)
+    r.ConsumeNumberIf(335, DEC_RADIX, "soft pointer reference to id/handle", nil)
+    r.ConsumeNumberIf(343, DEC_RADIX, "soft pointer reference to id/handle", nil)
+    r.ConsumeNumberIf(344, DEC_RADIX, "soft pointer reference to id/handle", nil)
+    r.ConsumeNumberIf(91, DEC_RADIX, "soft pointer reference to id/handle", nil)
+
+    return r.Err()
+}
