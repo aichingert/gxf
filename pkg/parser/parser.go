@@ -47,7 +47,9 @@ func FromFile(filename string) (*drawing.Dxf, error) {
 			case "BLOCKS":
 				Wrap(ParseBlocks, reader, dxf)
 			case "ENTITIES":
-				Wrap(ParseEntities, reader, dxf)
+                if err := ParseEntities(reader, dxf.EntitiesData); err != nil {
+                    return dxf, err
+                }
 			default:
 				log.Println("WARNING: section not implemented: ", section)
 				reader.SkipToLabel("ENDSEC")

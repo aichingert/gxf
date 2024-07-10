@@ -3,7 +3,6 @@ package parser
 import (
 	"log"
 
-	"github.com/aichingert/dxf/pkg/drawing"
 	"github.com/aichingert/dxf/pkg/entity"
 )
 
@@ -19,36 +18,41 @@ func WrapEntity(fn ParseEntityFunction, r *Reader, entities entity.Entities) {
 	WrappedEntityErr = fn(r, entities)
 }
 
-func ParseEntities(r *Reader, dxf *drawing.Dxf) error {
+func ParseEntities(r *Reader, entities entity.Entities) error {
 	for r.ScanDxfLine() {
 		switch r.DxfLine().Line {
 		case "LINE":
-			WrapEntity(ParseLine, r, dxf.EntitiesData)
+			WrapEntity(ParseLine, r, entities)
 		case "POLYLINE":
-			WrapEntity(ParsePolyline, r, dxf.EntitiesData)
+			WrapEntity(ParsePolyline, r, entities)
 		case "LWPOLYLINE":
-			WrapEntity(ParseLwPolyline, r, dxf.EntitiesData)
+			WrapEntity(ParseLwPolyline, r, entities)
 		case "ARC":
-			WrapEntity(ParseArc, r, dxf.EntitiesData)
+			WrapEntity(ParseArc, r, entities)
 		case "CIRCLE":
-			WrapEntity(ParseCircle, r, dxf.EntitiesData)
+			WrapEntity(ParseCircle, r, entities)
 		case "TEXT":
-			WrapEntity(ParseText, r, dxf.EntitiesData)
+			WrapEntity(ParseText, r, entities)
 		case "MTEXT":
-			WrapEntity(ParseMText, r, dxf.EntitiesData)
+			WrapEntity(ParseMText, r, entities)
 		case "HATCH":
-			WrapEntity(ParseHatch, r, dxf.EntitiesData)
+			WrapEntity(ParseHatch, r, entities)
 		case "ELLIPSE":
-			WrapEntity(ParseEllipse, r, dxf.EntitiesData)
+			WrapEntity(ParseEllipse, r, entities)
 		case "SOLID":
-			WrapEntity(ParseSolid, r, dxf.EntitiesData)
+			WrapEntity(ParseSolid, r, entities)
 		case "POINT":
-			WrapEntity(ParsePoint, r, dxf.EntitiesData)
+			WrapEntity(ParsePoint, r, entities)
 		case "DIMENSION":
-			WrapEntity(ParseDimension, r, dxf.EntitiesData)
+			WrapEntity(ParseDimension, r, entities)
+        case "REGION":
+            WrapEntity(ParseRegion, r, entities)
+        case "ATTDEF":
+            WrapEntity(ParseAttdef, r, entities)
 		case "INSERT":
-			WrapEntity(ParseInsert, r, dxf.EntitiesData)
-		case "ENDSEC":
+			WrapEntity(ParseInsert, r, entities)
+		case "ENDSEC": fallthrough
+        case "ENDBLK":
 			return r.Err()
 		default:
 			log.Println("[ENTITIES] ", Line, ": ", r.DxfLine().Line)
