@@ -1,8 +1,8 @@
 package parser
 
 import (
+	"fmt"
 	"log"
-    "fmt"
 
 	"github.com/aichingert/dxf/pkg/entity"
 )
@@ -46,20 +46,21 @@ func ParseEntities(r *Reader, entities entity.Entities) error {
 			WrapEntity(ParsePoint, r, entities)
 		case "DIMENSION":
 			WrapEntity(ParseDimension, r, entities)
-        case "REGION":
-            WrapEntity(ParseRegion, r, entities)
-        case "VIEWPORT":
-            WrapEntity(ParseViewport, r, entities)
-        case "ATTDEF":
-            WrapEntity(ParseAttdef, r, entities)
+		case "REGION":
+			WrapEntity(ParseRegion, r, entities)
+		case "VIEWPORT":
+			WrapEntity(ParseViewport, r, entities)
+		case "ATTDEF":
+			WrapEntity(ParseAttdef, r, entities)
 		case "INSERT":
 			WrapEntity(ParseInsert, r, entities)
-		case "ENDSEC": fallthrough
-        case "ENDBLK":
+		case "ENDSEC":
+			fallthrough
+		case "ENDBLK":
 			return r.Err()
 		default:
 			log.Println("[ENTITIES] ", Line, ": ", r.DxfLine().Line)
-            return NewParseError(fmt.Sprintf("unknown entity: %s", r.DxfLine().Line))
+			return NewParseError(fmt.Sprintf("unknown entity: %s", r.DxfLine().Line))
 		}
 
 		peek, err := r.PeekCode()

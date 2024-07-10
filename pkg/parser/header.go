@@ -1,10 +1,6 @@
 package parser
 
-import (
-	"log"
-
-	"github.com/aichingert/dxf/pkg/drawing"
-)
+import "github.com/aichingert/dxf/pkg/drawing"
 
 func parseCustomProperty(r *Reader, dxf *drawing.Dxf) error {
 	tag, err := r.ConsumeDxfLine()
@@ -117,8 +113,6 @@ func ParseHeader(r *Reader, dxf *drawing.Dxf) error {
 			r.ConsumeCoordinates(dxf.Header.LimMax[:])
 		case "ENDSEC":
 			return nil
-		default:
-			log.Println("[HEADER] Warning [NOT IMPLEMENTED]: ", r.DxfLine().Line)
 		}
 	}
 
