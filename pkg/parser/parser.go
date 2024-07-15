@@ -46,12 +46,10 @@ func FromFile(filename string) (*drawing.Dxf, error) {
 				*/
 			case "BLOCKS":
 				Wrap(ParseBlocks, reader, dxf)
-				/*
-					case "ENTITIES":
-						if err := ParseEntities(reader, dxf.EntitiesData); err != nil {
-							return dxf, err
-						}
-				*/
+			case "ENTITIES":
+				if err := ParseEntities(reader, dxf.EntitiesData); err != nil {
+					return dxf, err
+				}
 			default:
 				reader.SkipToLabel("ENDSEC")
 			}
