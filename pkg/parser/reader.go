@@ -252,17 +252,10 @@ func (r *Reader) Err() error {
 }
 
 func (r *Reader) SkipToLabel(label string) error {
-	for {
-		line, err := r.ConsumeDxfLine()
-
-		if err != nil {
-			return err
-		}
-
-		if line.Line == label {
-			return nil
-		}
+	for r.ScanDxfLine() && r.DxfLine().Line != label {
 	}
+
+	return r.Err()
 }
 
 func (r *Reader) PeekCode() (uint16, error) {
