@@ -120,7 +120,7 @@ func parseAcDbLayerTableRecord(r *Reader, dxf *drawing.Dxf) error {
 
 	r.ConsumeNumber(348, DecRadix, "not documented", nil)
 
-	if r.Err() != nil {
+	if r.Err() == nil {
 		dxf.Layers[layerName] = layer
 	}
 
