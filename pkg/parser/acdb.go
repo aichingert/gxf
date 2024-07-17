@@ -8,24 +8,24 @@ import (
 )
 
 func ParseAcDbEntity(r *Reader, entity entity.Entity) error {
-	r.ConsumeNumber(5, HEX_RADIX, "handle", entity.GetHandle())
+	r.ConsumeNumber(5, HexRadix, "handle", entity.GetHandle())
 
 	// TODO: set hard owner/handle to owner dictionary
 	if r.ConsumeStrIf(102, nil) { // consumeIf => ex. {ACAD_XDICTIONARY
 		r.ConsumeStr(nil) // 360 => hard owner
-		for r.ConsumeNumberIf(330, HEX_RADIX, "soft owner", nil) {
+		for r.ConsumeNumberIf(330, HexRadix, "soft owner", nil) {
 		}
 		r.ConsumeStr(nil) // 102 }
 	}
 
 	if r.ConsumeStrIf(102, nil) { // consumeIf => ex. {ACAD_XDICTIONARY
 		r.ConsumeStr(nil) // 360 => hard owner
-		for r.ConsumeNumberIf(330, HEX_RADIX, "soft owner", nil) {
+		for r.ConsumeNumberIf(330, HexRadix, "soft owner", nil) {
 		}
 		r.ConsumeStr(nil) // 102 }
 	}
 
-	r.ConsumeNumber(330, HEX_RADIX, "owner ptr", entity.GetOwner())
+	r.ConsumeNumber(330, HexRadix, "owner ptr", entity.GetOwner())
 
 	if r.AssertNextLine("AcDbEntity") != nil {
 		return r.Err()
@@ -36,13 +36,13 @@ func ParseAcDbEntity(r *Reader, entity entity.Entity) error {
 	r.ConsumeStr(entity.GetLayerName())
 
 	r.ConsumeStrIf(6, nil) // ByBlock
-	r.ConsumeNumberIf(62, DEC_RADIX, "color number (present if not bylayer)", nil)
+	r.ConsumeNumberIf(62, DecRadix, "color number (present if not bylayer)", nil)
 	r.ConsumeFloatIf(48, "linetype scale", nil)
-	r.ConsumeNumberIf(60, DEC_RADIX, "object visibility", entity.GetVisibility())
+	r.ConsumeNumberIf(60, DecRadix, "object visibility", entity.GetVisibility())
 
-	r.ConsumeNumberIf(420, DEC_RADIX, "24-bit color value", nil)
-	r.ConsumeNumberIf(440, DEC_RADIX, "transparency value", nil)
-	r.ConsumeNumberIf(370, DEC_RADIX, "not documented", nil)
+	r.ConsumeNumberIf(420, DecRadix, "24-bit color value", nil)
+	r.ConsumeNumberIf(440, DecRadix, "transparency value", nil)
+	r.ConsumeNumberIf(370, DecRadix, "not documented", nil)
 
 	return r.Err()
 }
@@ -64,21 +64,21 @@ func ParseAcDbPolyline(r *Reader, polyline *entity.Polyline) error {
 		return r.Err()
 	}
 
-	r.ConsumeNumber(90, DEC_RADIX, "number of vertices", &polyline.Vertices)
-	r.ConsumeNumber(70, DEC_RADIX, "polyline flag", &polyline.Flag)
+	r.ConsumeNumber(90, DecRadix, "number of vertices", &polyline.Vertices)
+	r.ConsumeNumber(70, DecRadix, "polyline flag", &polyline.Flag)
 
 	if !r.ConsumeFloatIf(43, "line width for each vertex", nil) {
 		//r.ConsumeFloat(43, "", nil)
 		//log.Fatal("[ENTITIES(", Line, ")] TODO: implement line width for each vertex")
 	}
 
-	for i := uint64(0); i < polyline.Vertices; i++ {
+	for i := int64(0); i < polyline.Vertices; i++ {
 		bulge := 0.0
 		coords2D := [2]float64{0.0, 0.0}
 
 		r.ConsumeCoordinates(coords2D[:])
 		r.ConsumeFloatIf(42, "expected bulge", &bulge)
-		r.ConsumeNumberIf(91, DEC_RADIX, "vertex identifier", nil)
+		r.ConsumeNumberIf(91, DecRadix, "vertex identifier", nil)
 
 		if r.Err() != nil {
 			return r.Err()
@@ -90,18 +90,18 @@ func ParseAcDbPolyline(r *Reader, polyline *entity.Polyline) error {
 	return r.Err()
 }
 
-func ParseAcDb2dPolyline(r *Reader, polyline *entity.Polyline) error {
+func ParseAcDb2dPolyline(r *Reader, _ *entity.Polyline) error {
 	if r.AssertNextLine("AcDb2dPolyline") != nil {
 		return r.Err()
 	}
 
-	r.ConsumeNumberIf(66, DEC_RADIX, "obsolete", nil)
+	r.ConsumeNumberIf(66, DecRadix, "obsolete", nil)
 
 	coords3D := [3]float64{0.0, 0.0, 0.0}
 	r.ConsumeCoordinates(coords3D[:])
 
 	r.ConsumeFloatIf(39, "thickness", nil)
-	r.ConsumeNumberIf(70, DEC_RADIX, "polyline flag", nil)
+	r.ConsumeNumberIf(70, DecRadix, "polyline flag", nil)
 
 	r.ConsumeFloatIf(40, "start width default 0", nil)
 	r.ConsumeFloatIf(41, "end width default 0", nil)
@@ -109,7 +109,7 @@ func ParseAcDb2dPolyline(r *Reader, polyline *entity.Polyline) error {
 	r.ConsumeFloatIf(72, "mesh N vertex count", nil)
 	r.ConsumeFloatIf(73, "smooth surface M density", nil)
 	r.ConsumeFloatIf(74, "smooth surface N density", nil)
-	r.ConsumeNumberIf(75, DEC_RADIX, "curves and smooth surface default 0", nil)
+	r.ConsumeNumberIf(75, DecRadix, "curves and smooth surface default 0", nil)
 
 	r.ConsumeCoordinatesIf(210, coords3D[:])
 
@@ -155,8 +155,8 @@ func ParseAcDbText(r *Reader, text *entity.Text) error {
 
 	r.ConsumeStrIf(7, &text.Style) // text style name default STANDARD
 
-	r.ConsumeNumberIf(71, DEC_RADIX, "text generation flags default 0", &text.Flags)
-	r.ConsumeNumberIf(72, DEC_RADIX, "horizontal text justification", &text.HJustification)
+	r.ConsumeNumberIf(71, DecRadix, "text generation flags default 0", &text.Flags)
+	r.ConsumeNumberIf(72, DecRadix, "horizontal text justification", &text.HJustification)
 
 	r.ConsumeCoordinatesIf(11, text.Vector[:])
 	// XYZ extrusion direction
@@ -172,7 +172,7 @@ func ParseAcDbText(r *Reader, text *entity.Text) error {
 	// group 72 and 73 integer codes
 	// https://help.autodesk.com/view/OARX/2024/ENU/?guid=GUID-62E5383D-8A14-47B4-BFC4-35824CAE8363
 
-	r.ConsumeNumberIf(73, DEC_RADIX, "vertical text justification", &text.VJustification)
+	r.ConsumeNumberIf(73, DecRadix, "vertical text justification", &text.VJustification)
 
 	return r.Err()
 }
@@ -189,8 +189,8 @@ func ParseAcDbMText(r *Reader, mText *entity.MText) error {
 	r.ConsumeFloat(41, "rectangle width", nil)
 	r.ConsumeFloat(46, "column height", nil)
 
-	r.ConsumeNumber(71, DEC_RADIX, "attachment point", &mText.Layout)
-	r.ConsumeNumber(72, DEC_RADIX, "direction (ex: left to right)", &mText.Direction)
+	r.ConsumeNumber(71, DecRadix, "attachment point", &mText.Layout)
+	r.ConsumeNumber(72, DecRadix, "direction (ex: left to right)", &mText.Direction)
 
 	// TODO: implement more helper :smelting:
 	code, err := r.PeekCode()
@@ -215,7 +215,7 @@ func ParseAcDbMText(r *Reader, mText *entity.MText) error {
 	r.ConsumeStrIf(7, &mText.TextStyle)
 	r.ConsumeCoordinatesIf(11, mText.Vector[:])
 
-	r.ConsumeNumber(73, DEC_RADIX, "line spacing", &mText.LineSpacing)
+	r.ConsumeNumber(73, DecRadix, "line spacing", &mText.LineSpacing)
 	r.ConsumeFloat(44, "line spacing factor", nil)
 
 	return HelperParseEmbeddedObject(r)
@@ -224,7 +224,7 @@ func ParseAcDbMText(r *Reader, mText *entity.MText) error {
 func HelperParseEmbeddedObject(r *Reader) error {
 	// Embedded Object
 	if r.ConsumeStrIf(101, nil) {
-		r.ConsumeNumberIf(70, DEC_RADIX, "not documented", nil)
+		r.ConsumeNumberIf(70, DecRadix, "not documented", nil)
 		coords3D := [3]float64{0.0, 0.0, 0.0}
 		r.ConsumeCoordinates(coords3D[:])
 		r.ConsumeCoordinatesIf(11, coords3D[:])
@@ -235,15 +235,15 @@ func HelperParseEmbeddedObject(r *Reader) error {
 		r.ConsumeFloatIf(43, "not documented", nil)
 		r.ConsumeFloatIf(46, "not documented", nil)
 
-		r.ConsumeNumberIf(71, DEC_RADIX, "not documented", nil)
-		r.ConsumeNumberIf(72, DEC_RADIX, "not documented", nil)
+		r.ConsumeNumberIf(71, DecRadix, "not documented", nil)
+		r.ConsumeNumberIf(72, DecRadix, "not documented", nil)
 		r.ConsumeStrIf(1, nil)
 
 		r.ConsumeFloatIf(44, "not documented", nil)
 		r.ConsumeFloatIf(45, "not documented", nil)
 
-		r.ConsumeNumberIf(73, DEC_RADIX, "not documented", nil)
-		r.ConsumeNumberIf(74, DEC_RADIX, "not documented", nil)
+		r.ConsumeNumberIf(73, DecRadix, "not documented", nil)
+		r.ConsumeNumberIf(74, DecRadix, "not documented", nil)
 
 		r.ConsumeFloatIf(44, "not documented", nil)
 		r.ConsumeFloatIf(46, "not documented", nil)
@@ -264,28 +264,28 @@ func ParseAcDbHatch(r *Reader, hatch *entity.Hatch) error {
 	r.ConsumeCoordinates(coords3D[:])
 
 	r.ConsumeStr(&hatch.PatternName)
-	r.ConsumeNumber(70, DEC_RADIX, "solid fill flag", &hatch.SolidFill)
-	r.ConsumeNumber(71, DEC_RADIX, "associativity flag", &hatch.Associative)
+	r.ConsumeNumber(70, DecRadix, "solid fill flag", &hatch.SolidFill)
+	r.ConsumeNumber(71, DecRadix, "associativity flag", &hatch.Associative)
 
-	boundaryPaths := uint64(0)
-	r.ConsumeNumber(91, DEC_RADIX, "boundary paths", &boundaryPaths)
+	boundaryPaths := int64(0)
+	r.ConsumeNumber(91, DecRadix, "boundary paths", &boundaryPaths)
 
-	for i := uint64(0); i < boundaryPaths; i++ {
-		pathTypeFlag := uint64(0)
+	for i := int64(0); i < boundaryPaths; i++ {
+		pathTypeFlag := int64(0)
 		// [92] Boundary path type flag (bit coded):
 		// 0 = Default | 1 = External | 2  = Polyline
 		// 4 = Derived | 8 = Textbox  | 16 = Outermost
-		r.ConsumeNumber(92, DEC_RADIX, "boundary path type flag", &pathTypeFlag)
+		r.ConsumeNumber(92, DecRadix, "boundary path type flag", &pathTypeFlag)
 
 		if pathTypeFlag&2 == 2 {
 			polyline := entity.NewPolyline()
 
 			// maybe consider?
-			r.ConsumeNumber(72, DEC_RADIX, "has bulge flag", nil)
-			r.ConsumeNumber(73, DEC_RADIX, "is closed flag", nil)
-			r.ConsumeNumber(93, DEC_RADIX, "number of polyline vertices", &polyline.Vertices)
+			r.ConsumeNumber(72, DecRadix, "has bulge flag", nil)
+			r.ConsumeNumber(73, DecRadix, "is closed flag", nil)
+			r.ConsumeNumber(93, DecRadix, "number of polyline vertices", &polyline.Vertices)
 
-			for vertex := uint64(0); vertex < polyline.Vertices; vertex++ {
+			for vertex := int64(0); vertex < polyline.Vertices; vertex++ {
 				coord2D, bulge := [2]float64{0.0, 0.0}, 0.0
 				r.ConsumeCoordinates(coord2D[:])
 				r.ConsumeFloatIf(42, "expected bulge", &bulge)
@@ -294,12 +294,12 @@ func ParseAcDbHatch(r *Reader, hatch *entity.Hatch) error {
 
 			hatch.Polylines = append(hatch.Polylines, polyline)
 		} else {
-			edges, edgeType := uint64(0), uint64(0)
+			edges, edgeType := int64(0), int64(0)
 
-			r.ConsumeNumber(93, DEC_RADIX, "number of edges in this boundary path", &edges)
+			r.ConsumeNumber(93, DecRadix, "number of edges in this boundary path", &edges)
 
-			for edge := uint64(0); edge < edges; edge++ {
-				r.ConsumeNumber(72, DEC_RADIX, "edge type data", &edgeType)
+			for edge := int64(0); edge < edges; edge++ {
+				r.ConsumeNumber(72, DecRadix, "edge type data", &edgeType)
 
 				switch edgeType {
 				case 1: // Line
@@ -314,7 +314,7 @@ func ParseAcDbHatch(r *Reader, hatch *entity.Hatch) error {
 
 					r.ConsumeFloat(50, "start angle", &arc.StartAngle)
 					r.ConsumeFloat(51, "end angle", &arc.EndAngle)
-					r.ConsumeNumber(73, DEC_RADIX, "is counterclockwise", &arc.Counterclockwise)
+					r.ConsumeNumber(73, DecRadix, "is counterclockwise", &arc.Counterclockwise)
 					hatch.Arcs = append(hatch.Arcs, arc)
 				case 3: // Elliptic arc
 					log.Fatal("hatch elliptic arc")
@@ -327,25 +327,25 @@ func ParseAcDbHatch(r *Reader, hatch *entity.Hatch) error {
 			}
 		}
 
-		boundaryObjectSize, boundaryObjectRef := uint64(0), uint64(0)
+		boundaryObjectSize, boundaryObjectRef := int64(0), int64(0)
 
-		r.ConsumeNumber(97, DEC_RADIX, "number of source boundary objects", &boundaryObjectSize)
-		for i := uint64(0); i < boundaryObjectSize; i++ {
-			r.ConsumeNumber(330, HEX_RADIX, "reference to source object", &boundaryObjectRef)
+		r.ConsumeNumber(97, DecRadix, "number of source boundary objects", &boundaryObjectSize)
+		for i := int64(0); i < boundaryObjectSize; i++ {
+			r.ConsumeNumber(330, HexRadix, "reference to source object", &boundaryObjectRef)
 		}
 	}
 
-	r.ConsumeNumber(75, DEC_RADIX, "hatch style", &hatch.Style)
-	r.ConsumeNumber(76, DEC_RADIX, "hatch pattern type", &hatch.Pattern)
+	r.ConsumeNumber(75, DecRadix, "hatch style", &hatch.Style)
+	r.ConsumeNumber(76, DecRadix, "hatch pattern type", &hatch.Pattern)
 	r.ConsumeFloatIf(52, "hatch pattern angle", &hatch.Angle)
 	r.ConsumeFloatIf(41, "hatch pattern scale or spacing", &hatch.Scale)
-	r.ConsumeNumberIf(77, DEC_RADIX, "hatch pattern double flag", &hatch.Double)
+	r.ConsumeNumberIf(77, DecRadix, "hatch pattern double flag", &hatch.Double)
 
-	patternDefinitions := uint64(0)
+	patternDefinitions := int64(0)
 
-	r.ConsumeNumberIf(78, DEC_RADIX, "number of pattern definition lines", &patternDefinitions)
+	r.ConsumeNumberIf(78, DecRadix, "number of pattern definition lines", &patternDefinitions)
 
-	for i := uint64(0); i < patternDefinitions; i++ {
+	for i := int64(0); i < patternDefinitions; i++ {
 		base, offset, angle := [2]float64{0.0, 0.0}, [2]float64{0.0, 0.0}, 0.0
 		dashes, dashLen := []float64{}, 0.0
 
@@ -355,10 +355,10 @@ func ParseAcDbHatch(r *Reader, hatch *entity.Hatch) error {
 		r.ConsumeFloat(45, "pattern line offset x", &offset[0])
 		r.ConsumeFloat(46, "pattern line offset y", &offset[1])
 
-		dashLengths := uint64(0)
-		r.ConsumeNumber(79, DEC_RADIX, "number of dash length items", &dashLengths)
+		dashLengths := int64(0)
+		r.ConsumeNumber(79, DecRadix, "number of dash length items", &dashLengths)
 
-		for j := uint64(0); j < dashLengths; j++ {
+		for j := int64(0); j < dashLengths; j++ {
 			r.ConsumeFloat(49, "dash length", &dashLen)
 			dashes = append(dashes, dashLen)
 		}
@@ -368,31 +368,31 @@ func ParseAcDbHatch(r *Reader, hatch *entity.Hatch) error {
 
 	r.ConsumeFloatIf(47, "pixel size used to determine density to perform ray casting", nil)
 
-	seedPoints := uint64(0)
-	r.ConsumeNumber(98, DEC_RADIX, "number of seed points", &seedPoints)
+	seedPoints := int64(0)
+	r.ConsumeNumber(98, DecRadix, "number of seed points", &seedPoints)
 
 	coord2D := [2]float64{0.0, 0.0}
 
-	for seedPoint := uint64(0); seedPoint < seedPoints; seedPoint++ {
+	for seedPoint := int64(0); seedPoint < seedPoints; seedPoint++ {
 		r.ConsumeCoordinates(coord2D[:])
 	}
 
-	r.ConsumeNumberIf(450, DEC_RADIX, "indicates solid hatch or gradient", nil)
-	r.ConsumeNumberIf(451, DEC_RADIX, "zero is reserved for future use", nil)
+	r.ConsumeNumberIf(450, DecRadix, "indicates solid hatch or gradient", nil)
+	r.ConsumeNumberIf(451, DecRadix, "zero is reserved for future use", nil)
 
 	// default 0,0
 	r.ConsumeFloatIf(460, "rotation angle in radians for gradients", nil)
 	r.ConsumeFloatIf(461, "gradient definition", nil)
-	r.ConsumeNumberIf(452, DEC_RADIX, "records how colors were defined", nil)
+	r.ConsumeNumberIf(452, DecRadix, "records how colors were defined", nil)
 	r.ConsumeFloatIf(462, "color tint value used by dialog", nil)
 
-	nColors := uint64(0)
-	r.ConsumeNumberIf(453, DEC_RADIX, "number of colors", &nColors)
+	nColors := int64(0)
+	r.ConsumeNumberIf(453, DecRadix, "number of colors", &nColors)
 
-	for color := uint64(0); color < nColors; color++ {
+	for color := int64(0); color < nColors; color++ {
 		r.ConsumeFloatIf(463, "reserved for future use", nil)
-		r.ConsumeNumberIf(63, DEC_RADIX, "not documented", nil)
-		r.ConsumeNumberIf(421, DEC_RADIX, "not documented", nil)
+		r.ConsumeNumberIf(63, DecRadix, "not documented", nil)
+		r.ConsumeNumberIf(421, DecRadix, "not documented", nil)
 	}
 
 	r.ConsumeStrIf(470, nil) // string default = LINEAR
@@ -420,7 +420,8 @@ func ParseAcDbEllipse(r *Reader, ellipse *entity.Ellipse) error {
 	return r.Err()
 }
 
-func ParseAcDbTrace(r *Reader, point *entity.MText) error {
+// AcDbPoint
+func ParseAcDbTrace(r *Reader, _ *entity.MText) error {
 	if r.AssertNextLine("AcDbTrace") != nil {
 		return r.Err()
 	}
@@ -436,7 +437,7 @@ func ParseAcDbTrace(r *Reader, point *entity.MText) error {
 	r.ConsumeFloat(23, "", nil)
 	r.ConsumeFloat(33, "", nil)
 
-	r.ConsumeNumberIf(39, DEC_RADIX, "thickness", nil)
+	r.ConsumeNumberIf(39, DecRadix, "thickness", nil)
 
 	// XYZ extrusion direction
 	// optional default 0, 0, 1
@@ -447,7 +448,7 @@ func ParseAcDbTrace(r *Reader, point *entity.MText) error {
 }
 
 // TODO: implement entity entity.Vertex
-func ParseAcDbVertex(r *Reader, vertex *entity.MText) error {
+func ParseAcDbVertex(r *Reader, _ *entity.MText) error {
 	if r.AssertNextLine("AcDbVertex") != nil {
 		return r.Err()
 	}
@@ -462,7 +463,7 @@ func ParseAcDbVertex(r *Reader, vertex *entity.MText) error {
 	r.ConsumeFloatIf(41, "end width", nil)
 	r.ConsumeFloatIf(42, "bulge", nil)
 
-	r.ConsumeNumberIf(70, DEC_RADIX, "vertex flags", nil)
+	r.ConsumeNumberIf(70, DecRadix, "vertex flags", nil)
 	r.ConsumeFloatIf(50, "curve fit tangent direction", nil)
 
 	r.ConsumeFloatIf(71, "polyface mesh vertex index", nil)
@@ -470,13 +471,13 @@ func ParseAcDbVertex(r *Reader, vertex *entity.MText) error {
 	r.ConsumeFloatIf(73, "polyface mesh vertex index", nil)
 	r.ConsumeFloatIf(74, "polyface mesh vertex index", nil)
 
-	r.ConsumeNumberIf(91, DEC_RADIX, "vertex identifier", nil)
+	r.ConsumeNumberIf(91, DecRadix, "vertex identifier", nil)
 
 	return r.Err()
 }
 
 // TODO: implement entity entity.Point
-func ParseAcDbPoint(r *Reader, point *entity.MText) error {
+func ParseAcDbPoint(r *Reader, _ *entity.MText) error {
 	if r.AssertNextLine("AcDbPoint") != nil {
 		return r.Err()
 	}
@@ -484,14 +485,13 @@ func ParseAcDbPoint(r *Reader, point *entity.MText) error {
 	coord3D := [3]float64{0.0, 0.0, 0.0}
 
 	r.ConsumeCoordinates(coord3D[:])
-	r.ConsumeNumberIf(39, DEC_RADIX, "thickness", nil)
+	r.ConsumeNumberIf(39, DecRadix, "thickness", nil)
 
 	// XYZ extrusion direction
 	// optional default 0, 0, 1
 	r.ConsumeCoordinatesIf(210, coord3D[:])
 	r.ConsumeFloatIf(50, "angle of the x axis", nil)
 
-	_ = point
 	return r.Err()
 }
 
@@ -500,7 +500,7 @@ func ParseAcDbBlockReference(r *Reader, insert *entity.Insert) error {
 		return r.Err()
 	}
 
-	r.ConsumeNumberIf(66, DEC_RADIX, "attributes follow", &insert.AttributesFollow)
+	r.ConsumeNumberIf(66, DecRadix, "attributes follow", &insert.AttributesFollow)
 	r.ConsumeStr(&insert.BlockName)
 	r.ConsumeCoordinates(insert.Coordinates[:])
 
@@ -509,8 +509,8 @@ func ParseAcDbBlockReference(r *Reader, insert *entity.Insert) error {
 	r.ConsumeFloatIf(43, "z scale factor", &insert.Scale[2])
 
 	r.ConsumeFloatIf(50, "rotation angle", &insert.Rotation)
-	r.ConsumeNumberIf(70, DEC_RADIX, "column count", &insert.ColCount)
-	r.ConsumeNumberIf(71, DEC_RADIX, "row count", &insert.RowCount)
+	r.ConsumeNumberIf(70, DecRadix, "column count", &insert.ColCount)
+	r.ConsumeNumberIf(71, DecRadix, "row count", &insert.RowCount)
 
 	r.ConsumeFloatIf(44, "column spacing", &insert.ColSpacing)
 	r.ConsumeFloatIf(45, "row spacing", &insert.RowSpacing)
@@ -529,7 +529,7 @@ func ParseAcDbBlockBegin(r *Reader, block *blocks.Block) error {
 	}
 
 	r.ConsumeStr(&block.BlockName) // [2] block name
-	r.ConsumeNumber(70, DEC_RADIX, "block-type flag", &block.Flag)
+	r.ConsumeNumber(70, DecRadix, "block-type flag", &block.Flag)
 	r.ConsumeCoordinates(block.Coordinates[:])
 
 	r.ConsumeStr(&block.OtherName) // [3] block name
@@ -544,17 +544,17 @@ func ParseAcDbAttribute(r *Reader, attrib *entity.Attrib) error {
 	}
 
 	r.ConsumeStr(&attrib.Tag) // [2] Attribute tag
-	r.ConsumeNumber(70, DEC_RADIX, "attribute flags", &attrib.Flags)
-	r.ConsumeNumberIf(74, DEC_RADIX, "vertical text justification", &attrib.Text.VJustification) // group code 73 TEXT
-	r.ConsumeNumberIf(280, DEC_RADIX, "version number", nil)
+	r.ConsumeNumber(70, DecRadix, "attribute flags", &attrib.Flags)
+	r.ConsumeNumberIf(74, DecRadix, "vertical text justification", &attrib.Text.VJustification) // group code 73 TEXT
+	r.ConsumeNumberIf(280, DecRadix, "version number", nil)
 
-	r.ConsumeNumberIf(73, DEC_RADIX, "field length", nil) // not currently used
+	r.ConsumeNumberIf(73, DecRadix, "field length", nil) // not currently used
 	r.ConsumeFloatIf(50, "text rotation", &attrib.Text.Rotation)
 	r.ConsumeFloatIf(41, "relative x scale factor (width)", &attrib.Text.XScale) // adjusted when fit-type text is used
 	r.ConsumeFloatIf(51, "oblique angle", &attrib.Text.Oblique)
 	r.ConsumeStrIf(7, &attrib.Text.Style) // text style name default STANDARD
-	r.ConsumeNumberIf(71, DEC_RADIX, "text generation flags", &attrib.Text.Flags)
-	r.ConsumeNumberIf(72, DEC_RADIX, "horizontal text justification", &attrib.Text.HJustification)
+	r.ConsumeNumberIf(71, DecRadix, "text generation flags", &attrib.Text.Flags)
+	r.ConsumeNumberIf(72, DecRadix, "horizontal text justification", &attrib.Text.HJustification)
 
 	r.ConsumeCoordinatesIf(11, attrib.Text.Vector[:])
 	r.ConsumeCoordinatesIf(210, attrib.Text.Vector[:])
@@ -579,26 +579,26 @@ func ParseAcDbAttributeDefinition(r *Reader, attdef *entity.Attdef) error {
 
 	r.ConsumeStr(&attdef.Prompt) // [3] prompt string
 	r.ConsumeStr(&attdef.Tag)    // [2] tag string
-	r.ConsumeNumber(70, DEC_RADIX, "attribute flags", &attdef.Flags)
+	r.ConsumeNumber(70, DecRadix, "attribute flags", &attdef.Flags)
 	r.ConsumeFloatIf(73, "field length", nil)
-	r.ConsumeNumberIf(74, DEC_RADIX, "vertical text justification", &attdef.Text.VJustification)
+	r.ConsumeNumberIf(74, DecRadix, "vertical text justification", &attdef.Text.VJustification)
 
-	r.ConsumeNumber(280, DEC_RADIX, "lock position flag", nil)
+	r.ConsumeNumber(280, DecRadix, "lock position flag", nil)
 
-	r.ConsumeNumberIf(71, DEC_RADIX, "attachment point", &attdef.AttachmentPoint)
-	r.ConsumeNumberIf(72, DEC_RADIX, "drawing direction", &attdef.DrawingDirection)
+	r.ConsumeNumberIf(71, DecRadix, "attachment point", &attdef.AttachmentPoint)
+	r.ConsumeNumberIf(72, DecRadix, "drawing direction", &attdef.DrawingDirection)
 
 	r.ConsumeCoordinatesIf(11, attdef.Direction[:])
 
 	return HelperParseEmbeddedObject(r)
 }
 
-func ParseAcDbDimension(r *Reader, attdef *entity.Attdef) error {
+func ParseAcDbDimension(r *Reader, _ *entity.Attdef) error {
 	if r.AssertNextLine("AcDbDimension") != nil {
 		return r.Err()
 	}
 
-	r.ConsumeNumber(280, DEC_RADIX, "version number", nil)
+	r.ConsumeNumber(280, DecRadix, "version number", nil)
 	r.ConsumeStr(nil) // name of the block
 
 	coords3D := [3]float64{0.0, 0.0, 0.0}
@@ -606,16 +606,16 @@ func ParseAcDbDimension(r *Reader, attdef *entity.Attdef) error {
 	r.ConsumeCoordinates(coords3D[:])
 	r.ConsumeCoordinates(coords3D[:])
 
-	r.ConsumeNumber(70, DEC_RADIX, "dimension type", nil)
-	r.ConsumeNumber(71, DEC_RADIX, "attachment point", nil)
-	r.ConsumeNumberIf(72, DEC_RADIX, "dimension text-line spacing", nil)
+	r.ConsumeNumber(70, DecRadix, "dimension type", nil)
+	r.ConsumeNumber(71, DecRadix, "attachment point", nil)
+	r.ConsumeNumberIf(72, DecRadix, "dimension text-line spacing", nil)
 
-	r.ConsumeNumberIf(41, DEC_RADIX, "dimension text-line factor", nil)
-	r.ConsumeNumberIf(42, DEC_RADIX, "actual measurement", nil)
+	r.ConsumeNumberIf(41, DecRadix, "dimension text-line factor", nil)
+	r.ConsumeNumberIf(42, DecRadix, "actual measurement", nil)
 
-	r.ConsumeNumberIf(73, DEC_RADIX, "not documented", nil)
-	r.ConsumeNumberIf(74, DEC_RADIX, "not documented", nil)
-	r.ConsumeNumberIf(75, DEC_RADIX, "not documented", nil)
+	r.ConsumeNumberIf(73, DecRadix, "not documented", nil)
+	r.ConsumeNumberIf(74, DecRadix, "not documented", nil)
+	r.ConsumeNumberIf(75, DecRadix, "not documented", nil)
 
 	r.ConsumeStrIf(1, nil) // dimension text
 	r.ConsumeFloatIf(53, "roation angle of the dimension", nil)
@@ -659,7 +659,7 @@ func ParseAcDbDimension(r *Reader, attdef *entity.Attdef) error {
 	return r.Err()
 }
 
-func ParseAcDbViewport(r *Reader, viewport *entity.MText) error {
+func ParseAcDbViewport(r *Reader, _ *entity.MText) error {
 	if r.AssertNextLine("AcDbViewport") != nil {
 		return r.Err()
 	}
@@ -673,7 +673,7 @@ func ParseAcDbViewport(r *Reader, viewport *entity.MText) error {
 	r.ConsumeFloat(68, "viewport status field", nil)
 	// => -1 0 On, 0 = Off
 
-	r.ConsumeNumber(69, DEC_RADIX, "viewport id", nil)
+	r.ConsumeNumber(69, DecRadix, "viewport id", nil)
 
 	r.ConsumeFloat(12, "center point x", nil)
 	r.ConsumeFloat(22, "center point y", nil)
@@ -703,15 +703,15 @@ func ParseAcDbViewport(r *Reader, viewport *entity.MText) error {
 
 	code, err := r.PeekCode()
 	for err != nil && code == 331 {
-		r.ConsumeNumber(331, DEC_RADIX, "frozen layer object Id/handle", nil)
+		r.ConsumeNumber(331, DecRadix, "frozen layer object Id/handle", nil)
 	}
 
-	r.ConsumeNumber(90, HEX_RADIX, "viewport status bit-coded flags", nil)
-	r.ConsumeNumberIf(340, DEC_RADIX, "hard-pointer id/handle to entity that serves as the viewports clipping boundary", nil)
+	r.ConsumeNumber(90, HexRadix, "viewport status bit-coded flags", nil)
+	r.ConsumeNumberIf(340, DecRadix, "hard-pointer id/handle to entity that serves as the viewports clipping boundary", nil)
 	r.ConsumeStr(nil) // [1]
-	r.ConsumeNumber(281, DEC_RADIX, "render mode", nil)
-	r.ConsumeNumber(71, DEC_RADIX, "ucs per viewport flag", nil)
-	r.ConsumeNumber(74, DEC_RADIX, "display ucs icon at ucs origin flag", nil)
+	r.ConsumeNumber(281, DecRadix, "render mode", nil)
+	r.ConsumeNumber(71, DecRadix, "ucs per viewport flag", nil)
+	r.ConsumeNumber(74, DecRadix, "display ucs icon at ucs origin flag", nil)
 	r.ConsumeFloat(110, "ucs origin x", nil)
 	r.ConsumeFloat(120, "ucs origin y", nil)
 	r.ConsumeFloat(130, "ucs origin z", nil)
@@ -724,19 +724,19 @@ func ParseAcDbViewport(r *Reader, viewport *entity.MText) error {
 	r.ConsumeFloat(122, "ucs y-axis y", nil)
 	r.ConsumeFloat(132, "ucs y-axis z", nil)
 
-	r.ConsumeNumberIf(345, DEC_RADIX, "id/handle of AcDbUCSTableRecord if UCS is a named ucs", nil)
-	r.ConsumeNumberIf(346, DEC_RADIX, "id/handle of AcDbUCSTableRecord of base ucs", nil)
-	r.ConsumeNumber(79, DEC_RADIX, "Orthographic type of UCS", nil)
+	r.ConsumeNumberIf(345, DecRadix, "id/handle of AcDbUCSTableRecord if UCS is a named ucs", nil)
+	r.ConsumeNumberIf(346, DecRadix, "id/handle of AcDbUCSTableRecord of base ucs", nil)
+	r.ConsumeNumber(79, DecRadix, "Orthographic type of UCS", nil)
 	r.ConsumeFloat(146, "elevation", nil)
-	r.ConsumeNumber(170, DEC_RADIX, "ShadePlot mode", nil)
-	r.ConsumeNumber(61, DEC_RADIX, "frequency of major grid lines compared to minor grid lines", nil)
+	r.ConsumeNumber(170, DecRadix, "ShadePlot mode", nil)
+	r.ConsumeNumber(61, DecRadix, "frequency of major grid lines compared to minor grid lines", nil)
 
-	r.ConsumeNumberIf(332, DEC_RADIX, "background id/handle", nil)
-	r.ConsumeNumberIf(333, DEC_RADIX, "shade plot id/handle", nil)
-	r.ConsumeNumberIf(348, DEC_RADIX, "visual style id/handle", nil)
+	r.ConsumeNumberIf(332, DecRadix, "background id/handle", nil)
+	r.ConsumeNumberIf(333, DecRadix, "shade plot id/handle", nil)
+	r.ConsumeNumberIf(348, DecRadix, "visual style id/handle", nil)
 
-	r.ConsumeNumber(292, DEC_RADIX, "default lighting type on when no use lights are specified", nil)
-	r.ConsumeNumber(282, DEC_RADIX, "default lighting type", nil)
+	r.ConsumeNumber(292, DecRadix, "default lighting type on when no use lights are specified", nil)
+	r.ConsumeNumber(282, DecRadix, "default lighting type", nil)
 	r.ConsumeFloat(141, "view brightness", nil)
 	r.ConsumeFloat(142, "view contrast", nil)
 
@@ -744,11 +744,11 @@ func ParseAcDbViewport(r *Reader, viewport *entity.MText) error {
 	r.ConsumeFloatIf(421, "ambient light color only if not black", nil)
 	r.ConsumeFloatIf(431, "ambient light color only if not black", nil)
 
-	r.ConsumeNumberIf(361, DEC_RADIX, "sun id/handle", nil)
-	r.ConsumeNumberIf(335, DEC_RADIX, "soft pointer reference to id/handle", nil)
-	r.ConsumeNumberIf(343, DEC_RADIX, "soft pointer reference to id/handle", nil)
-	r.ConsumeNumberIf(344, DEC_RADIX, "soft pointer reference to id/handle", nil)
-	r.ConsumeNumberIf(91, DEC_RADIX, "soft pointer reference to id/handle", nil)
+	r.ConsumeNumberIf(361, DecRadix, "sun id/handle", nil)
+	r.ConsumeNumberIf(335, DecRadix, "soft pointer reference to id/handle", nil)
+	r.ConsumeNumberIf(343, DecRadix, "soft pointer reference to id/handle", nil)
+	r.ConsumeNumberIf(344, DecRadix, "soft pointer reference to id/handle", nil)
+	r.ConsumeNumberIf(91, DecRadix, "soft pointer reference to id/handle", nil)
 
 	return r.Err()
 }

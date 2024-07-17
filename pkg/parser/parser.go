@@ -1,6 +1,9 @@
 package parser
 
-import "github.com/aichingert/dxf/pkg/drawing"
+import (
+    "github.com/aichingert/dxf/pkg/drawing"
+    "log"
+)
 
 var (
 	Handle uint64 = 0
@@ -37,13 +40,13 @@ func FromFile(filename string) (*drawing.Dxf, error) {
 				return dxf, err
 			}
 
+            log.Println(section)
+
 			switch section.Line {
 			case "HEADER":
 				Wrap(ParseHeader, reader, dxf)
-				/*
-				   case "TABLES":
-				       Wrap(ParseTables, reader, dxf)
-				*/
+           case "TABLES":
+               Wrap(ParseTables, reader, dxf)
 			case "BLOCKS":
 				Wrap(ParseBlocks, reader, dxf)
 			case "ENTITIES":

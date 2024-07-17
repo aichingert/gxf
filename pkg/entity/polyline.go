@@ -3,8 +3,8 @@ package entity
 type Polyline struct {
 	Entity *EntityData
 
-	Flag        uint64
-	Vertices    uint64
+	Flag        int64
+	Vertices    int64
 	Coordinates []PLine
 }
 

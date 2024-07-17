@@ -12,8 +12,8 @@ type Block struct {
 
 	BlockName string
 	OtherName string
-	EndHandle uint64
-	Flag      uint64
+	EndHandle int64
+	Flag      int64
 
 	XRefPath    string
 	Description string

@@ -4,14 +4,14 @@ type Hatch struct {
 	Entity *EntityData
 
 	PatternName string
-	SolidFill   uint64
-	Associative uint64
+	SolidFill   int64
+	Associative int64
 
-	Style   uint64
-	Pattern uint64
+	Style   int64
+	Pattern int64
 	Angle   float64
 	Scale   float64
-	Double  uint64
+	Double  int64
 
 	PatternLines []*PatternLine
 

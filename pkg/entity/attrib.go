@@ -9,7 +9,7 @@ type Attrib struct {
 
 	*Text
 	Tag   string
-	Flags uint64
+	Flags int64
 }
 
 func NewAttrib() *Attrib {

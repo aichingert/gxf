@@ -4,11 +4,11 @@ type MText struct {
 	Entity *EntityData
 
 	// [71] Attachment Point
-	Layout uint64
+	Layout int64
 	// [72] Drawing direction
-	Direction uint64
+	Direction int64
 	// [73] Line spacing (optional)
-	LineSpacing uint64
+	LineSpacing int64
 
 	// [1]/[3] 1 default text and 3 for additional (up to 250 characters)
 	Text []string

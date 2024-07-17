@@ -8,9 +8,9 @@ type Attdef struct {
 	Tag    string
 	Prompt string
 
-	Flags            uint64
-	AttachmentPoint  uint64
-	DrawingDirection uint64
+	Flags            int64
+	AttachmentPoint  int64
+	DrawingDirection int64
 
 	Direction [3]float64
 }

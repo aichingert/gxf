@@ -287,7 +287,7 @@ func ParseDimension(r *Reader, entities entity.Entities) error {
 		return r.Err()
 	}
 
-	r.ConsumeNumberIf(290, DEC_RADIX, "not documented", nil)
+	r.ConsumeNumberIf(290, DecRadix, "not documented", nil)
 	r.ConsumeStrIf(2, nil)
 
 	return r.Err()
@@ -301,7 +301,7 @@ func ParseRegion(r *Reader, entities entity.Entities) error {
 		return r.Err()
 	}
 
-	r.ConsumeNumberIf(290, DEC_RADIX, "not documented", nil)
+	r.ConsumeNumberIf(290, DecRadix, "not documented", nil)
 	r.ConsumeStrIf(2, nil)
 
 	return r.Err()

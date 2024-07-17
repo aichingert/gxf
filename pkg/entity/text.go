@@ -6,11 +6,11 @@ type Text struct {
 	Text  string
 	Style string
 
-	Flags uint64
+	Flags int64
 	// Horizontal
-	HJustification uint64
+	HJustification int64
 	// Vertical
-	VJustification uint64
+	VJustification int64
 
 	Rotation  float64
 	Thickness float64

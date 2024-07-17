@@ -3,12 +3,12 @@ package entity
 type Insert struct {
 	Entity           *EntityData
 	BlockName        string
-	AttributesFollow uint64
+	AttributesFollow int64
 
 	Rotation float64
 
-	RowCount   uint64
-	ColCount   uint64
+	RowCount   int64
+	ColCount   int64
 	RowSpacing float64
 	ColSpacing float64
 

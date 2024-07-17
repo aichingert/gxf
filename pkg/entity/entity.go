@@ -29,16 +29,16 @@ func New() *EntitiesData {
 }
 
 type Entity interface {
-	GetHandle() *uint64
-	GetOwner() *uint64
-	GetVisibility() *uint64
+	GetHandle() *int64
+	GetOwner() *int64
+	GetVisibility() *int64
 	GetLayerName() *string
 }
 
 type EntityData struct {
-	Handle     uint64
-	Owner      uint64
-	Visibility uint64
+	Handle     int64
+	Owner      int64
+	Visibility int64
 
 	LayerName string
 }
@@ -52,15 +52,15 @@ func NewEntityData() *EntityData {
 	}
 }
 
-func (e *EntityData) GetHandle() *uint64 {
+func (e *EntityData) GetHandle() *int64 {
 	return &e.Handle
 }
 
-func (e *EntityData) GetOwner() *uint64 {
+func (e *EntityData) GetOwner() *int64 {
 	return &e.Owner
 }
 
-func (e *EntityData) GetVisibility() *uint64 {
+func (e *EntityData) GetVisibility() *int64 {
 	return &e.Visibility
 }
 
