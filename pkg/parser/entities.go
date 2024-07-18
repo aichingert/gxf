@@ -207,6 +207,12 @@ func ParseInsert(r *Reader, entities entity.Entities) {
 	ParseAcDbEntity(r, insert.Entity)
 	ParseAcDbBlockReference(r, insert)
 
+	peek, err := r.PeekCode()
+	for err == nil && peek != 0 {
+		r.ConsumeStr(nil)
+		peek, err = r.PeekCode()
+	}
+
 Att:
 	for insert.AttributesFollow == 1 && r.ScanDxfLine() {
 		switch r.DxfLine().Line {

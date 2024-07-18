@@ -78,6 +78,10 @@ func ParseAcDbPolyline(r *Reader, polyline *entity.Polyline) {
 		bulge := 0.0
 
 		r.ConsumeCoordinates(coords2D[:])
+
+		r.ConsumeFloatIf(40, "default start width", nil)
+		r.ConsumeFloatIf(41, "default start width", nil)
+
 		r.ConsumeFloatIf(42, "expected bulge", &bulge)
 		r.ConsumeNumberIf(91, DecRadix, "vertex identifier", nil)
 
@@ -115,6 +119,7 @@ func ParseAcDbCircle(r *Reader, circle *entity.Circle) {
 		return
 	}
 
+	r.ConsumeFloatIf(39, "thickness", nil)
 	r.ConsumeCoordinates(circle.Coordinates[:])
 	r.ConsumeFloat(40, "expected radius", &circle.Radius)
 }
@@ -300,7 +305,16 @@ func ParseAcDbHatch(r *Reader, hatch *entity.Hatch) {
 					r.ConsumeNumber(73, DecRadix, "is counterclockwise", &arc.Counterclockwise)
 					hatch.Arcs = append(hatch.Arcs, arc)
 				case 3: // Elliptic arc
-					log.Fatal("hatch elliptic arc")
+					ellipse := entity.NewEllipse()
+
+					r.ConsumeCoordinates(ellipse.Center[:2])
+					r.ConsumeCoordinates(ellipse.EndPoint[:2])
+					r.ConsumeFloat(40, "length of minor axis", &ellipse.Ratio)
+					r.ConsumeFloat(50, "start angle", &ellipse.Start)
+					r.ConsumeFloat(51, "end angle", &ellipse.End)
+					r.ConsumeFloat(73, "is counterclockwise", nil)
+
+					hatch.Ellipses = append(hatch.Ellipses, ellipse)
 				case 4: // Spine
 					log.Fatal("hatch spine")
 				default:
@@ -401,27 +415,27 @@ func ParseAcDbSpline(r *Reader, _ *entity.MText) {
 		return
 	}
 
-	knots := int64(0)
+	knots, controlPoints, fitPoints := int64(0), int64(0), int64(0)
 
 	r.ConsumeCoordinates(coords3D[:])
 	r.ConsumeNumber(70, DecRadix, "spline flag", nil)
-	r.ConsumeFloat(71, "degree of the spline curve", nil)
+	r.ConsumeNumber(71, DecRadix, "degree of the spline curve", nil)
 	r.ConsumeNumber(72, DecRadix, "number of knots", &knots)
-	r.ConsumeNumber(73, DecRadix, "number of control points", nil)
-	r.ConsumeNumber(74, DecRadix, "number of fit points", nil)
+	r.ConsumeNumber(73, DecRadix, "number of control points", &controlPoints)
+	r.ConsumeNumber(74, DecRadix, "number of fit points", &fitPoints)
 	r.ConsumeFloatIf(42, "knot tolerance default 0.0000001", nil)
 	r.ConsumeFloatIf(43, "control point tolerance 0.0000001", nil)
 	r.ConsumeFloatIf(44, "fit tolerance default 0.0000001", nil)
 
-	r.ConsumeCoordinates(coords3D[:]) // start tangent - may be omitted
-	r.ConsumeCoordinates(coords3D[:]) // end tangent   - may be omitted
-
 	for i := int64(0); i < knots; i++ {
 		r.ConsumeFloat(40, "knot value", nil)
 	}
-
-	r.ConsumeCoordinates(coords3D[:]) // control points
-	r.ConsumeCoordinates(coords3D[:]) // fit points
+	for i := int64(0); i < controlPoints; i++ {
+		r.ConsumeCoordinates(coords3D[:]) // start tangent - may be omitted
+	}
+	for i := int64(0); i < fitPoints; i++ {
+		r.ConsumeCoordinates(coords3D[:]) // end tangent   - may be omitted
+	}
 }
 
 // AcDbPoint
@@ -481,7 +495,9 @@ func ParseAcDbPoint(r *Reader, _ *entity.MText) {
 }
 
 func ParseAcDbBlockReference(r *Reader, insert *entity.Insert) {
-	if r.AssertNextLine("AcDbBlockReference") != nil {
+	line := ""
+	r.ConsumeStr(&line)
+	if r.Err() != nil || !(line == "AcDbBlockReference" || line == "AcDbMInsertBlock") {
 		return
 	}
 
@@ -577,9 +593,10 @@ func ParseAcDbDimension(r *Reader, _ *entity.Attdef) {
 
 	r.ConsumeCoordinates(coords3D[:])
 	r.ConsumeCoordinates(coords3D[:])
+	r.ConsumeCoordinatesIf(12, coords3D[:])
 
-	r.ConsumeNumber(70, DecRadix, "dimension type", nil)
-	r.ConsumeNumber(71, DecRadix, "attachment point", nil)
+	r.ConsumeNumberIf(70, DecRadix, "dimension type", nil)
+	r.ConsumeNumberIf(71, DecRadix, "attachment point", nil)
 	r.ConsumeNumberIf(72, DecRadix, "dimension text-line spacing", nil)
 
 	r.ConsumeNumberIf(41, DecRadix, "dimension text-line factor", nil)
@@ -592,6 +609,12 @@ func ParseAcDbDimension(r *Reader, _ *entity.Attdef) {
 	r.ConsumeStrIf(1, nil) // dimension text
 	r.ConsumeFloatIf(53, "roation angle of the dimension", nil)
 	r.ConsumeFloatIf(51, "horizontal direction", nil)
+
+	r.ConsumeNumberIf(71, DecRadix, "attachment point", nil)
+	r.ConsumeNumberIf(42, DecRadix, "actual measurement", nil)
+	r.ConsumeNumberIf(73, DecRadix, "not documented", nil)
+	r.ConsumeNumberIf(74, DecRadix, "not documented", nil)
+	r.ConsumeNumberIf(75, DecRadix, "not documented", nil)
 
 	r.ConsumeCoordinatesIf(210, coords3D[:])
 	r.ConsumeStrIf(3, nil) // [3] dimension style name
@@ -613,7 +636,7 @@ func ParseAcDbDimension(r *Reader, _ *entity.Attdef) {
 		r.ConsumeFloatIf(52, "oblique angle", nil)
 		r.ConsumeStrIf(100, nil) // subclass marker AcDbRotatedDimension
 	default:
-		log.Fatal(dim)
+		log.Fatal("Dimension(", Line, ")", dim)
 	}
 }
 
@@ -625,9 +648,10 @@ func ParseAcDbViewport(r *Reader, _ *entity.MText) {
 	r.ConsumeCoordinates(coords3D[:])
 	r.ConsumeFloat(40, "width in paper space units", nil)
 	r.ConsumeFloat(41, "height in paper space units", nil)
-	r.ConsumeFloat(68, "viewport status field", nil)
 
 	// => -1 0 On, 0 = Off
+	r.ConsumeFloatIf(68, "viewport status field", nil)
+
 	r.ConsumeNumber(69, DecRadix, "viewport id", nil)
 
 	r.ConsumeCoordinates(coords2D[:]) // center point

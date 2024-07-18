@@ -196,7 +196,7 @@ func (r *Reader) ConsumeCoordinates(coords []float64) {
 		cord := r.DxfLine()
 		index := cord.Code%100/10 - 1
 
-		if index > uint16(len(coords)) {
+		if index >= uint16(len(coords)) {
 			msg := fmt.Sprintf("Coordinates out of bounds: len is %d index was %d", len(coords), index)
 			r.err = NewParseError(msg)
 			return
