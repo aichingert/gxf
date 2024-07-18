@@ -2,21 +2,15 @@ package parser
 
 import "github.com/aichingert/dxf/pkg/drawing"
 
-func parseCustomProperty(r *Reader, dxf *drawing.Dxf) error {
-	tag, err := r.ConsumeDxfLine()
-	if err != nil {
-		return err
-	}
-	property, err := r.ConsumeDxfLine()
-	if err != nil {
-		return err
-	}
+func parseCustomProperty(r *Reader, dxf *drawing.Dxf) {
+	tag, property := "", ""
+	r.ConsumeStr(&tag)
+	r.ConsumeStr(&property)
 
-	dxf.Header.CustomProperties[tag.Line] = property.Line
-	return nil
+	dxf.Header.CustomProperties[tag] = property
 }
 
-func ParseHeader(r *Reader, dxf *drawing.Dxf) error {
+func ParseHeader(r *Reader, dxf *drawing.Dxf) {
 	for r.ScanDxfLine() {
 		switch r.DxfLine().Line {
 		case "$ACADVER":
@@ -76,11 +70,9 @@ func ParseHeader(r *Reader, dxf *drawing.Dxf) error {
 		case "$DIMLIM":
 			fallthrough
 		case "$LASTSAVEDBY":
-			data, err := r.ConsumeDxfLine()
-			if err != nil {
-				return err
-			}
-			dxf.Header.Variables[r.DxfLine().Line] = data.Line
+			savedBy := ""
+			r.ConsumeStr(&savedBy)
+			dxf.Header.Variables[r.DxfLine().Line] = savedBy
 		case "$ORTHOMODE":
 			fallthrough
 		case "$REGENMODE":
@@ -92,15 +84,11 @@ func ParseHeader(r *Reader, dxf *drawing.Dxf) error {
 		case "$MIRRTEXT":
 			fallthrough
 		case "$ATTMODE":
-			data, err := r.ConsumeDxfLine()
-			if err != nil {
-				return err
-			}
-			dxf.Header.Modes[r.DxfLine().Line] = data.Line
+			mode := ""
+			r.ConsumeStr(&mode)
+			dxf.Header.Modes[r.DxfLine().Line] = mode
 		case "$CUSTOMPROPERTYTAG":
-			if err := parseCustomProperty(r, dxf); err != nil {
-				return err
-			}
+			parseCustomProperty(r, dxf)
 		case "$INSBASE":
 			r.ConsumeCoordinates(dxf.Header.InsBase[:])
 		case "$EXTMAX":
@@ -112,9 +100,7 @@ func ParseHeader(r *Reader, dxf *drawing.Dxf) error {
 		case "$LIMMAX":
 			r.ConsumeCoordinates(dxf.Header.LimMax[:])
 		case "ENDSEC":
-			return nil
+			return
 		}
 	}
-
-	return r.Err()
 }

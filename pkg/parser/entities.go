@@ -7,60 +7,50 @@ import (
 	"github.com/aichingert/dxf/pkg/entity"
 )
 
-type ParseEntityFunction func(*Reader, entity.Entities) error
-
-var WrappedEntityErr error
-
-func WrapEntity(fn ParseEntityFunction, r *Reader, entities entity.Entities) {
-	if WrappedEntityErr != nil {
-		return
-	}
-
-	WrappedEntityErr = fn(r, entities)
-}
-
-func ParseEntities(r *Reader, entities entity.Entities) error {
+func ParseEntities(r *Reader, entities entity.Entities) {
 	for r.ScanDxfLine() {
 		switch r.DxfLine().Line {
 		case "LINE":
-			WrapEntity(ParseLine, r, entities)
+			ParseLine(r, entities)
 		case "POLYLINE":
-			WrapEntity(ParsePolyline, r, entities)
+			ParsePolyline(r, entities)
 		case "LWPOLYLINE":
-			WrapEntity(ParseLwPolyline, r, entities)
+			ParseLwPolyline(r, entities)
 		case "ARC":
-			WrapEntity(ParseArc, r, entities)
+			ParseArc(r, entities)
 		case "CIRCLE":
-			WrapEntity(ParseCircle, r, entities)
+			ParseCircle(r, entities)
 		case "TEXT":
-			WrapEntity(ParseText, r, entities)
+			ParseText(r, entities)
 		case "MTEXT":
-			WrapEntity(ParseMText, r, entities)
+			ParseMText(r, entities)
 		case "HATCH":
-			WrapEntity(ParseHatch, r, entities)
+			ParseHatch(r, entities)
 		case "ELLIPSE":
-			WrapEntity(ParseEllipse, r, entities)
+			ParseEllipse(r, entities)
+		case "SPLINE":
+			ParseSpline(r, entities)
 		case "SOLID":
-			WrapEntity(ParseSolid, r, entities)
+			ParseSolid(r, entities)
 		case "POINT":
-			WrapEntity(ParsePoint, r, entities)
+			ParsePoint(r, entities)
 		case "DIMENSION":
-			WrapEntity(ParseDimension, r, entities)
+			ParseDimension(r, entities)
 		case "REGION":
-			WrapEntity(ParseRegion, r, entities)
+			ParseRegion(r, entities)
 		case "VIEWPORT":
-			WrapEntity(ParseViewport, r, entities)
+			ParseViewport(r, entities)
 		case "ATTDEF":
-			WrapEntity(ParseAttdef, r, entities)
+			ParseAttdef(r, entities)
 		case "INSERT":
-			WrapEntity(ParseInsert, r, entities)
+			ParseInsert(r, entities)
 		case "ENDSEC":
 			fallthrough
 		case "ENDBLK":
-			return r.Err()
+			return
 		default:
-			log.Println("[ENTITIES] ", Line, ": ", r.DxfLine().Line)
-			return NewParseError(fmt.Sprintf("unknown entity: %s", r.DxfLine().Line))
+			r.err = NewParseError(fmt.Sprintf("unknown entity: %s", r.DxfLine().Line))
+			return
 		}
 
 		peek, err := r.PeekCode()
@@ -68,35 +58,24 @@ func ParseEntities(r *Reader, entities entity.Entities) error {
 			r.ConsumeStr(nil)
 			peek, err = r.PeekCode()
 		}
-
-		if WrappedEntityErr != nil {
-			return WrappedEntityErr
-		}
 	}
-
-	return r.Err()
 }
 
-func ParseLine(r *Reader, entities entity.Entities) error {
+func ParseLine(r *Reader, entities entity.Entities) {
 	line := entity.NewLine()
 
-	if ParseAcDbEntity(r, line.Entity) != nil ||
-		ParseAcDbLine(r, line) != nil {
-		return r.Err()
-	}
+	ParseAcDbEntity(r, line.Entity)
+	ParseAcDbLine(r, line)
 
 	entities.AppendLine(line)
-	return r.Err()
 }
 
 // TODO: create polyline and lwpolyline
-func ParsePolyline(r *Reader, entities entity.Entities) error {
+func ParsePolyline(r *Reader, entities entity.Entities) {
 	polyline := entity.NewPolyline()
 
-	if ParseAcDbEntity(r, polyline.Entity) != nil ||
-		ParseAcDb2dPolyline(r, polyline) != nil {
-		return r.Err()
-	}
+	ParseAcDbEntity(r, polyline.Entity)
+	ParseAcDb2dPolyline(r, polyline)
 
 	peek, err := r.PeekCode()
 	for err == nil && peek != 0 {
@@ -107,11 +86,11 @@ func ParsePolyline(r *Reader, entities entity.Entities) error {
 	for r.ScanDxfLine() {
 		switch r.DxfLine().Line {
 		case "VERTEX":
-			WrapEntity(ParseVertex, r, entities)
+			ParseVertex(r, entities)
 		case "SEQEND":
 			// marks end of insert
 			ParseAcDbEntity(r, polyline.Entity)
-			return r.Err()
+			return
 		default:
 			log.Fatal("[", Line, "] Invalid entity: ", r.DxfLine().Line)
 		}
@@ -124,144 +103,115 @@ func ParsePolyline(r *Reader, entities entity.Entities) error {
 	}
 
 	//entities.AppendPolyline(polyline)
-	return r.Err()
 }
 
-func ParseLwPolyline(r *Reader, entities entity.Entities) error {
+func ParseLwPolyline(r *Reader, entities entity.Entities) {
 	polyline := entity.NewPolyline()
 
-	if ParseAcDbEntity(r, polyline.Entity) != nil ||
-		ParseAcDbPolyline(r, polyline) != nil {
-		return r.Err()
-	}
+	ParseAcDbEntity(r, polyline.Entity)
+	ParseAcDbPolyline(r, polyline)
 
 	entities.AppendPolyline(polyline)
-	return r.Err()
 }
 
-func ParseArc(r *Reader, entities entity.Entities) error {
+func ParseArc(r *Reader, entities entity.Entities) {
 	arc := entity.NewArc()
 
-	if ParseAcDbEntity(r, arc.Entity) != nil ||
-		ParseAcDbCircle(r, arc.Circle) != nil ||
-		ParseAcDbArc(r, arc) != nil {
-		return r.Err()
-	}
+	ParseAcDbEntity(r, arc.Entity)
+	ParseAcDbCircle(r, arc.Circle)
+	ParseAcDbArc(r, arc)
 
 	entities.AppendArc(arc)
-	return r.Err()
 }
 
-func ParseCircle(r *Reader, entities entity.Entities) error {
+func ParseCircle(r *Reader, entities entity.Entities) {
 	circle := entity.NewCircle()
 
-	if ParseAcDbEntity(r, circle.Entity) != nil ||
-		ParseAcDbCircle(r, circle) != nil {
-		return r.Err()
-	}
+	ParseAcDbEntity(r, circle.Entity)
+	ParseAcDbCircle(r, circle)
 
 	entities.AppendCircle(circle)
-	return r.Err()
 }
 
-func ParseText(r *Reader, entities entity.Entities) error {
+func ParseText(r *Reader, entities entity.Entities) {
 	text := entity.NewText()
 
-	if ParseAcDbEntity(r, text.Entity) != nil ||
-		ParseAcDbText(r, text) != nil {
-		return r.Err()
-	}
+	ParseAcDbEntity(r, text.Entity)
+	ParseAcDbText(r, text)
 
 	entities.AppendText(text)
-	return r.Err()
 }
 
-func ParseMText(r *Reader, entities entity.Entities) error {
+func ParseMText(r *Reader, entities entity.Entities) {
 	mText := entity.NewMText()
 
-	if ParseAcDbEntity(r, mText.Entity) != nil ||
-		ParseAcDbMText(r, mText) != nil {
-		return r.Err()
-	}
+	ParseAcDbEntity(r, mText.Entity)
+	ParseAcDbMText(r, mText)
 
 	entities.AppendMText(mText)
-	return r.Err()
 }
 
-func ParseHatch(r *Reader, entities entity.Entities) error {
+func ParseHatch(r *Reader, entities entity.Entities) {
 	hatch := entity.NewHatch()
 
-	if ParseAcDbEntity(r, hatch.Entity) != nil ||
-		ParseAcDbHatch(r, hatch) != nil {
-		return r.Err()
-	}
+	ParseAcDbEntity(r, hatch.Entity)
+	ParseAcDbHatch(r, hatch)
 
 	entities.AppendHatch(hatch)
-	return r.Err()
 }
 
-func ParseEllipse(r *Reader, entities entity.Entities) error {
+func ParseEllipse(r *Reader, entities entity.Entities) {
 	ellipse := entity.NewEllipse()
 
-	if ParseAcDbEntity(r, ellipse.Entity) != nil ||
-		ParseAcDbEllipse(r, ellipse) != nil {
-		return r.Err()
-	}
+	ParseAcDbEntity(r, ellipse.Entity)
+	ParseAcDbEllipse(r, ellipse)
 
 	entities.AppendEllipse(ellipse)
-	return r.Err()
 }
 
-func ParseSolid(r *Reader, entities entity.Entities) error {
+// TODO: create entity spline
+func ParseSpline(r *Reader, _ entity.Entities) {
+	spline := entity.NewMText()
+
+	ParseAcDbEntity(r, spline.Entity)
+	ParseAcDbSpline(r, spline)
+}
+
+// TODO: create entity solid
+func ParseSolid(r *Reader, _ entity.Entities) {
 	solid := entity.NewMText()
 
-	if ParseAcDbEntity(r, solid.Entity) != nil ||
-		ParseAcDbTrace(r, solid) != nil {
-		return r.Err()
-	}
-
-	return r.Err()
+	ParseAcDbEntity(r, solid.Entity)
+	ParseAcDbTrace(r, solid)
 }
 
-// TODO: create vertex
-func ParseVertex(r *Reader, entities entity.Entities) error {
+// TODO: create entity vertex
+func ParseVertex(r *Reader, _ entity.Entities) {
 	vertex := entity.NewMText()
 
-	if ParseAcDbEntity(r, vertex.Entity) != nil ||
-		ParseAcDbVertex(r, vertex) != nil {
-		return r.Err()
-	}
-
-	return r.Err()
+	ParseAcDbEntity(r, vertex.Entity)
+	ParseAcDbVertex(r, vertex)
 }
 
 // TODO: create entity point
-func ParsePoint(r *Reader, entities entity.Entities) error {
+func ParsePoint(r *Reader, _ entity.Entities) {
 	point := entity.NewMText()
 
-	if ParseAcDbEntity(r, point.Entity) != nil ||
-		ParseAcDbPoint(r, point) != nil {
-		return r.Err()
-	}
-
-	return r.Err()
+	ParseAcDbEntity(r, point.Entity)
+	ParseAcDbPoint(r, point)
 }
 
-func ParseInsert(r *Reader, entities entity.Entities) error {
+func ParseInsert(r *Reader, entities entity.Entities) {
 	insert := entity.NewInsert()
 
-	if ParseAcDbEntity(r, insert.Entity) != nil ||
-		ParseAcDbBlockReference(r, insert) != nil {
-		return r.Err()
-	}
+	ParseAcDbEntity(r, insert.Entity)
+	ParseAcDbBlockReference(r, insert)
 
 Att:
 	for insert.AttributesFollow == 1 && r.ScanDxfLine() {
 		switch r.DxfLine().Line {
 		case "ATTRIB":
-			if ParseAttrib(r, insert) != nil {
-				return r.Err()
-			}
+			ParseAttrib(r, insert)
 		case "SEQEND":
 			// marks end of attributes
 			ParseAcDbEntity(r, insert.Entity)
@@ -269,76 +219,58 @@ Att:
 		default:
 			log.Fatal("[INSERT(", Line, ")] invalid subclass marker ", r.DxfLine().Line)
 		}
-
-		if WrappedEntityErr != nil {
-			return WrappedEntityErr
-		}
 	}
 
 	entities.AppendInsert(insert)
-	return r.Err()
 }
 
-func ParseDimension(r *Reader, entities entity.Entities) error {
+// TODO: create entity DIMENSION
+func ParseDimension(r *Reader, _ entity.Entities) {
 	throwAway := entity.NewAttdef()
 
-	if ParseAcDbEntity(r, throwAway.Entity) != nil ||
-		ParseAcDbDimension(r, throwAway) != nil {
-		return r.Err()
+	ParseAcDbEntity(r, throwAway.Entity)
+	ParseAcDbDimension(r, throwAway)
+
+	r.ConsumeNumberIf(290, DecRadix, "not documented", nil)
+	r.ConsumeStrIf(2, nil)
+}
+
+// TODO: create entity region
+func ParseRegion(r *Reader, _ entity.Entities) {
+	throwAway := entity.NewMText()
+
+	ParseAcDbEntity(r, throwAway.Entity)
+
+	if r.AssertNextLine("AcDbModelerGeometry") != nil {
+		return
 	}
 
 	r.ConsumeNumberIf(290, DecRadix, "not documented", nil)
 	r.ConsumeStrIf(2, nil)
-
-	return r.Err()
 }
 
-func ParseRegion(r *Reader, entities entity.Entities) error {
+// TODO: create entity viewport
+func ParseViewport(r *Reader, _ entity.Entities) {
 	throwAway := entity.NewMText()
 
-	if ParseAcDbEntity(r, throwAway.Entity) != nil ||
-		r.AssertNextLine("AcDbModelerGeometry") != nil {
-		return r.Err()
-	}
-
-	r.ConsumeNumberIf(290, DecRadix, "not documented", nil)
-	r.ConsumeStrIf(2, nil)
-
-	return r.Err()
+	ParseAcDbEntity(r, throwAway.Entity)
+	ParseAcDbViewport(r, throwAway)
 }
 
-func ParseViewport(r *Reader, entities entity.Entities) error {
-	throwAway := entity.NewMText()
-
-	if ParseAcDbEntity(r, throwAway.Entity) != nil ||
-		ParseAcDbViewport(r, throwAway) != nil {
-		return r.Err()
-	}
-
-	return r.Err()
-}
-
-func ParseAttrib(r *Reader, appender entity.AttribAppender) error {
+func ParseAttrib(r *Reader, appender entity.AttribAppender) {
 	attrib := entity.NewAttrib()
 
-	if ParseAcDbEntity(r, attrib.Entity) != nil ||
-		ParseAcDbText(r, attrib.Text) != nil ||
-		ParseAcDbAttribute(r, attrib) != nil {
-		return r.Err()
-	}
+	ParseAcDbEntity(r, attrib.Entity)
+	ParseAcDbText(r, attrib.Text)
+	ParseAcDbAttribute(r, attrib)
 
 	appender.AppendAttrib(attrib)
-	return r.Err()
 }
 
-func ParseAttdef(r *Reader, entities entity.Entities) error {
+func ParseAttdef(r *Reader, _ entity.Entities) {
 	attdef := entity.NewAttdef()
 
-	if ParseAcDbEntity(r, attdef.Entity) != nil ||
-		ParseAcDbText(r, attdef.Text) != nil ||
-		ParseAcDbAttributeDefinition(r, attdef) != nil {
-		return r.Err()
-	}
-
-	return r.Err()
+	ParseAcDbEntity(r, attdef.Entity)
+	ParseAcDbText(r, attdef.Text)
+	ParseAcDbAttributeDefinition(r, attdef)
 }

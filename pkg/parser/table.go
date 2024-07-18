@@ -1,6 +1,7 @@
 package parser
 
 import (
+	"fmt"
 	"github.com/aichingert/dxf/pkg/table"
 	"log"
 
@@ -8,33 +9,25 @@ import (
 	_ "github.com/aichingert/dxf/pkg/entity"
 )
 
-func ParseTables(r *Reader, dxf *drawing.Dxf) error {
+func ParseTables(r *Reader, dxf *drawing.Dxf) {
 	for r.ScanDxfLine() {
 		switch r.DxfLine().Line {
 		case "TABLE":
-			Wrap(parseTable, r, dxf)
+			parseTable(r, dxf)
 		case "ENDSEC":
-			return r.Err()
+			return
 		default:
-			log.Println("Table(", Line, "): ", r.DxfLine().Line)
-			return r.Err()
-		}
-
-		if WrappedErr != nil {
-			return WrappedErr
+			r.err = NewParseError(fmt.Sprintf("Table(%d): %s", Line, r.DxfLine().Line))
+			return
 		}
 	}
-
-	return r.Err()
 }
 
-func parseTable(r *Reader, dxf *drawing.Dxf) error {
+func parseTable(r *Reader, dxf *drawing.Dxf) {
 	for r.ScanDxfLine() {
 		switch r.DxfLine().Line {
 		case "LAYER":
-			if parseLayerTable(r, dxf) != nil {
-				return r.Err()
-			}
+			parseLayerTable(r, dxf)
 		case "VPORT":
 			fallthrough
 		case "LTYPE":
@@ -50,10 +43,10 @@ func parseTable(r *Reader, dxf *drawing.Dxf) error {
 		case "BLOCK_RECORD":
 			fallthrough
 		case "DIMSTYLE":
-			_ = r.SkipToLabel("ENDTAB")
-			return r.Err()
+			r.SkipToLabel("ENDTAB")
+			return
 		case "ENDTAB":
-			return r.Err()
+			return
 		default:
 			log.Fatal(Line, r.DxfLine())
 		}
@@ -64,12 +57,10 @@ func parseTable(r *Reader, dxf *drawing.Dxf) error {
 			peek, err = r.PeekCode()
 		}
 	}
-
-	return r.Err()
 }
 
 // TODO: maybe put this in acdb as well
-func parseLayerTable(r *Reader, dxf *drawing.Dxf) error {
+func parseLayerTable(r *Reader, dxf *drawing.Dxf) {
 	r.ConsumeNumber(5, HexRadix, "handle", nil)
 	// TODO: set hard owner/handle to owner dictionary
 	if r.ConsumeStrIf(102, nil) { // consumeIf => ex. {ACAD_XDICTIONARY
@@ -91,17 +82,15 @@ func parseLayerTable(r *Reader, dxf *drawing.Dxf) error {
 	r.ConsumeStr(&next)
 
 	if next == "AcDbSymbolTableRecord" {
-		return parseAcDbLayerTableRecord(r, dxf)
+		parseAcDbLayerTableRecord(r, dxf)
 	} else {
 		r.ConsumeNumber(70, DecRadix, "standard flag", nil)
 	}
-
-	return r.Err()
 }
 
-func parseAcDbLayerTableRecord(r *Reader, dxf *drawing.Dxf) error {
+func parseAcDbLayerTableRecord(r *Reader, dxf *drawing.Dxf) {
 	if r.AssertNextLine("AcDbLayerTableRecord") != nil {
-		return r.Err()
+		return
 	}
 
 	layer := table.NewLayer()
@@ -117,12 +106,7 @@ func parseAcDbLayerTableRecord(r *Reader, dxf *drawing.Dxf) error {
 	r.ConsumeNumber(370, DecRadix, "line weight enum value", nil)
 	r.ConsumeNumber(390, DecRadix, "hard-pointer Id/handle to plot style name object", nil)
 	r.ConsumeNumber(347, DecRadix, "hard-pointer Id/handle to material object", nil)
-
 	r.ConsumeNumber(348, DecRadix, "not documented", nil)
 
-	if r.Err() == nil {
-		dxf.Layers[layerName] = layer
-	}
-
-	return r.Err()
+	dxf.Layers[layerName] = layer
 }

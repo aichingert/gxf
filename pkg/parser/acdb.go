@@ -7,7 +7,13 @@ import (
 	"github.com/aichingert/dxf/pkg/entity"
 )
 
-func ParseAcDbEntity(r *Reader, entity entity.Entity) error {
+// TODO: replace with actual entities values
+var (
+	coords2D = [2]float64{0, 0}
+	coords3D = [3]float64{0, 0, 0}
+)
+
+func ParseAcDbEntity(r *Reader, entity entity.Entity) {
 	r.ConsumeNumber(5, HexRadix, "handle", entity.GetHandle())
 
 	// TODO: set hard owner/handle to owner dictionary
@@ -28,7 +34,7 @@ func ParseAcDbEntity(r *Reader, entity entity.Entity) error {
 	r.ConsumeNumber(330, HexRadix, "owner ptr", entity.GetOwner())
 
 	if r.AssertNextLine("AcDbEntity") != nil {
-		return r.Err()
+		return
 	}
 
 	// TODO: think about paper space visibility
@@ -43,25 +49,21 @@ func ParseAcDbEntity(r *Reader, entity entity.Entity) error {
 	r.ConsumeNumberIf(420, DecRadix, "24-bit color value", nil)
 	r.ConsumeNumberIf(440, DecRadix, "transparency value", nil)
 	r.ConsumeNumberIf(370, DecRadix, "not documented", nil)
-
-	return r.Err()
 }
 
-func ParseAcDbLine(r *Reader, line *entity.Line) error {
+func ParseAcDbLine(r *Reader, line *entity.Line) {
 	if r.AssertNextLine("AcDbLine") != nil {
-		return r.Err()
+		return
 	}
 
 	r.ConsumeFloatIf(39, "thickness", nil)
 	r.ConsumeCoordinates(line.Src[:])
 	r.ConsumeCoordinates(line.Dst[:])
-
-	return r.Err()
 }
 
-func ParseAcDbPolyline(r *Reader, polyline *entity.Polyline) error {
+func ParseAcDbPolyline(r *Reader, polyline *entity.Polyline) {
 	if r.AssertNextLine("AcDbPolyline") != nil {
-		return r.Err()
+		return
 	}
 
 	r.ConsumeNumber(90, DecRadix, "number of vertices", &polyline.Vertices)
@@ -74,32 +76,26 @@ func ParseAcDbPolyline(r *Reader, polyline *entity.Polyline) error {
 
 	for i := int64(0); i < polyline.Vertices; i++ {
 		bulge := 0.0
-		coords2D := [2]float64{0.0, 0.0}
 
 		r.ConsumeCoordinates(coords2D[:])
 		r.ConsumeFloatIf(42, "expected bulge", &bulge)
 		r.ConsumeNumberIf(91, DecRadix, "vertex identifier", nil)
 
 		if r.Err() != nil {
-			return r.Err()
+			return
 		}
 
 		polyline.AppendPLine(coords2D, bulge)
 	}
-
-	return r.Err()
 }
 
-func ParseAcDb2dPolyline(r *Reader, _ *entity.Polyline) error {
+func ParseAcDb2dPolyline(r *Reader, _ *entity.Polyline) {
 	if r.AssertNextLine("AcDb2dPolyline") != nil {
-		return r.Err()
+		return
 	}
 
 	r.ConsumeNumberIf(66, DecRadix, "obsolete", nil)
-
-	coords3D := [3]float64{0.0, 0.0, 0.0}
 	r.ConsumeCoordinates(coords3D[:])
-
 	r.ConsumeFloatIf(39, "thickness", nil)
 	r.ConsumeNumberIf(70, DecRadix, "polyline flag", nil)
 
@@ -112,35 +108,29 @@ func ParseAcDb2dPolyline(r *Reader, _ *entity.Polyline) error {
 	r.ConsumeNumberIf(75, DecRadix, "curves and smooth surface default 0", nil)
 
 	r.ConsumeCoordinatesIf(210, coords3D[:])
-
-	return r.Err()
 }
 
-func ParseAcDbCircle(r *Reader, circle *entity.Circle) error {
+func ParseAcDbCircle(r *Reader, circle *entity.Circle) {
 	if r.AssertNextLine("AcDbCircle") != nil {
-		return r.Err()
+		return
 	}
 
 	r.ConsumeCoordinates(circle.Coordinates[:])
 	r.ConsumeFloat(40, "expected radius", &circle.Radius)
-
-	return r.Err()
 }
 
-func ParseAcDbArc(r *Reader, arc *entity.Arc) error {
+func ParseAcDbArc(r *Reader, arc *entity.Arc) {
 	if r.AssertNextLine("AcDbArc") != nil {
-		return r.Err()
+		return
 	}
 
 	r.ConsumeFloat(50, "expected startAngle", &arc.StartAngle)
 	r.ConsumeFloat(51, "expected endAngle", &arc.EndAngle)
-
-	return r.Err()
 }
 
-func ParseAcDbText(r *Reader, text *entity.Text) error {
+func ParseAcDbText(r *Reader, text *entity.Text) {
 	if r.AssertNextLine("AcDbText") != nil {
-		return r.Err()
+		return
 	}
 
 	r.ConsumeFloatIf(39, "expected thickness", &text.Thickness)
@@ -173,13 +163,11 @@ func ParseAcDbText(r *Reader, text *entity.Text) error {
 	// https://help.autodesk.com/view/OARX/2024/ENU/?guid=GUID-62E5383D-8A14-47B4-BFC4-35824CAE8363
 
 	r.ConsumeNumberIf(73, DecRadix, "vertical text justification", &text.VJustification)
-
-	return r.Err()
 }
 
-func ParseAcDbMText(r *Reader, mText *entity.MText) error {
+func ParseAcDbMText(r *Reader, mText *entity.MText) {
 	if r.AssertNextLine("AcDbMText") != nil {
-		return r.Err()
+		return
 	}
 
 	r.ConsumeCoordinates(mText.Coordinates[:])
@@ -195,20 +183,20 @@ func ParseAcDbMText(r *Reader, mText *entity.MText) error {
 	// TODO: implement more helper :smelting:
 	code, err := r.PeekCode()
 	if err != nil {
-		return err
+		return
 	}
 
 	for code == 1 || code == 3 {
-		line, err := r.ConsumeDxfLine()
-		if err != nil {
-			return err
+		line := r.ConsumeDxfLine()
+		if r.err != nil {
+			return
 		}
 
 		mText.Text = append(mText.Text, line.Line)
 
 		code, err = r.PeekCode()
 		if err != nil {
-			return err
+			return
 		}
 	}
 
@@ -217,15 +205,13 @@ func ParseAcDbMText(r *Reader, mText *entity.MText) error {
 
 	r.ConsumeNumber(73, DecRadix, "line spacing", &mText.LineSpacing)
 	r.ConsumeFloat(44, "line spacing factor", nil)
-
-	return HelperParseEmbeddedObject(r)
+	HelperParseEmbeddedObject(r)
 }
 
-func HelperParseEmbeddedObject(r *Reader) error {
+func HelperParseEmbeddedObject(r *Reader) {
 	// Embedded Object
 	if r.ConsumeStrIf(101, nil) {
 		r.ConsumeNumberIf(70, DecRadix, "not documented", nil)
-		coords3D := [3]float64{0.0, 0.0, 0.0}
 		r.ConsumeCoordinates(coords3D[:])
 		r.ConsumeCoordinatesIf(11, coords3D[:])
 
@@ -248,19 +234,16 @@ func HelperParseEmbeddedObject(r *Reader) error {
 		r.ConsumeFloatIf(44, "not documented", nil)
 		r.ConsumeFloatIf(46, "not documented", nil)
 	}
-
-	return r.Err()
 }
 
-func ParseAcDbHatch(r *Reader, hatch *entity.Hatch) error {
+func ParseAcDbHatch(r *Reader, hatch *entity.Hatch) {
 	if r.AssertNextLine("AcDbHatch") != nil {
-		return r.Err()
+		return
 	}
 
-	coords3D := [3]float64{0.0, 0.0, 0.0}
 	// TODO: elevation ignored since 2d
 	r.ConsumeCoordinates(coords3D[:])
-	// TODO: [210/220/230] extrusion direction (only need 2d maybe later)
+	// TODO: extrusion ignored since 2d
 	r.ConsumeCoordinates(coords3D[:])
 
 	r.ConsumeStr(&hatch.PatternName)
@@ -286,10 +269,10 @@ func ParseAcDbHatch(r *Reader, hatch *entity.Hatch) error {
 			r.ConsumeNumber(93, DecRadix, "number of polyline vertices", &polyline.Vertices)
 
 			for vertex := int64(0); vertex < polyline.Vertices; vertex++ {
-				coord2D, bulge := [2]float64{0.0, 0.0}, 0.0
-				r.ConsumeCoordinates(coord2D[:])
+				coords2D, bulge := [2]float64{0.0, 0.0}, 0.0
+				r.ConsumeCoordinates(coords2D[:])
 				r.ConsumeFloatIf(42, "expected bulge", &bulge)
-				polyline.AppendPLine(coord2D, bulge)
+				polyline.AppendPLine(coords2D, bulge)
 			}
 
 			hatch.Polylines = append(hatch.Polylines, polyline)
@@ -322,7 +305,8 @@ func ParseAcDbHatch(r *Reader, hatch *entity.Hatch) error {
 					log.Fatal("hatch spine")
 				default:
 					log.Println("[AcDbHatch(", Line, ")] invalid edge type data", edgeType)
-					return NewParseError("invalid edge type data")
+					r.err = NewParseError("invalid edge type data")
+					return
 				}
 			}
 		}
@@ -347,7 +331,8 @@ func ParseAcDbHatch(r *Reader, hatch *entity.Hatch) error {
 
 	for i := int64(0); i < patternDefinitions; i++ {
 		base, offset, angle := [2]float64{0.0, 0.0}, [2]float64{0.0, 0.0}, 0.0
-		dashes, dashLen := []float64{}, 0.0
+		var dashes []float64
+		dashLen := 0.0
 
 		r.ConsumeFloat(53, "pattern line angle", &angle)
 		r.ConsumeFloat(43, "pattern line base point x", &base[0])
@@ -371,10 +356,8 @@ func ParseAcDbHatch(r *Reader, hatch *entity.Hatch) error {
 	seedPoints := int64(0)
 	r.ConsumeNumber(98, DecRadix, "number of seed points", &seedPoints)
 
-	coord2D := [2]float64{0.0, 0.0}
-
 	for seedPoint := int64(0); seedPoint < seedPoints; seedPoint++ {
-		r.ConsumeCoordinates(coord2D[:])
+		r.ConsumeCoordinates(coords2D[:])
 	}
 
 	r.ConsumeNumberIf(450, DecRadix, "indicates solid hatch or gradient", nil)
@@ -396,69 +379,77 @@ func ParseAcDbHatch(r *Reader, hatch *entity.Hatch) error {
 	}
 
 	r.ConsumeStrIf(470, nil) // string default = LINEAR
-
-	return r.Err()
 }
 
-func ParseAcDbEllipse(r *Reader, ellipse *entity.Ellipse) error {
+func ParseAcDbEllipse(r *Reader, ellipse *entity.Ellipse) {
 	if r.AssertNextLine("AcDbEllipse") != nil {
-		return r.Err()
+		return
 	}
 
 	r.ConsumeCoordinates(ellipse.Center[:])   // Center point
 	r.ConsumeCoordinates(ellipse.EndPoint[:]) // Endpoint of major axis
 
-	// XYZ extrusion direction
-	// optional default = 0, 0, 1
-	coord3D := [3]float64{0.0, 0.0, 0.0}
-	r.ConsumeCoordinatesIf(210, coord3D[:])
+	r.ConsumeCoordinatesIf(210, coords3D[:])
 
 	r.ConsumeFloat(40, "ratio of minor axis to major axis", &ellipse.Ratio)
 	r.ConsumeFloat(41, "start parameter", &ellipse.Start)
 	r.ConsumeFloat(42, "end parameter", &ellipse.End)
+}
 
-	return r.Err()
+func ParseAcDbSpline(r *Reader, _ *entity.MText) {
+	if r.AssertNextLine("AcDbSpline") != nil {
+		return
+	}
+
+	knots := int64(0)
+
+	r.ConsumeCoordinates(coords3D[:])
+	r.ConsumeNumber(70, DecRadix, "spline flag", nil)
+	r.ConsumeFloat(71, "degree of the spline curve", nil)
+	r.ConsumeNumber(72, DecRadix, "number of knots", &knots)
+	r.ConsumeNumber(73, DecRadix, "number of control points", nil)
+	r.ConsumeNumber(74, DecRadix, "number of fit points", nil)
+	r.ConsumeFloatIf(42, "knot tolerance default 0.0000001", nil)
+	r.ConsumeFloatIf(43, "control point tolerance 0.0000001", nil)
+	r.ConsumeFloatIf(44, "fit tolerance default 0.0000001", nil)
+
+	r.ConsumeCoordinates(coords3D[:]) // start tangent - may be omitted
+	r.ConsumeCoordinates(coords3D[:]) // end tangent   - may be omitted
+
+	for i := int64(0); i < knots; i++ {
+		r.ConsumeFloat(40, "knot value", nil)
+	}
+
+	r.ConsumeCoordinates(coords3D[:]) // control points
+	r.ConsumeCoordinates(coords3D[:]) // fit points
 }
 
 // AcDbPoint
-func ParseAcDbTrace(r *Reader, _ *entity.MText) error {
+func ParseAcDbTrace(r *Reader, _ *entity.MText) {
 	if r.AssertNextLine("AcDbTrace") != nil {
-		return r.Err()
+		return
 	}
 
-	coord3D := [3]float64{0.0, 0.0, 0.0}
-
-	r.ConsumeCoordinates(coord3D[:])
-	r.ConsumeCoordinates(coord3D[:])
-	r.ConsumeFloat(12, "", nil)
-	r.ConsumeFloat(22, "", nil)
-	r.ConsumeFloat(32, "", nil)
-	r.ConsumeFloat(13, "", nil)
-	r.ConsumeFloat(23, "", nil)
-	r.ConsumeFloat(33, "", nil)
+	r.ConsumeCoordinates(coords3D[:])
+	r.ConsumeCoordinates(coords3D[:])
+	r.ConsumeCoordinates(coords3D[:])
+	r.ConsumeCoordinates(coords3D[:])
 
 	r.ConsumeNumberIf(39, DecRadix, "thickness", nil)
-
-	// XYZ extrusion direction
-	// optional default 0, 0, 1
-	r.ConsumeCoordinatesIf(210, coord3D[:])
+	r.ConsumeCoordinatesIf(210, coords3D[:])
 	r.ConsumeFloatIf(50, "angle of the x axis", nil)
-
-	return r.Err()
 }
 
 // TODO: implement entity entity.Vertex
-func ParseAcDbVertex(r *Reader, _ *entity.MText) error {
+func ParseAcDbVertex(r *Reader, _ *entity.MText) {
 	if r.AssertNextLine("AcDbVertex") != nil {
-		return r.Err()
+		return
 	}
 
 	next := ""
 	r.ConsumeStr(&next) // AcDb2dVertex or AcDb3dPolylineVertex
 
-	coord3D := [3]float64{0.0, 0.0, 0.0}
-
-	r.ConsumeCoordinates(coord3D[:])
+	r.ConsumeCoordinates(coords3D[:])
 	r.ConsumeFloatIf(40, "starting width", nil)
 	r.ConsumeFloatIf(41, "end width", nil)
 	r.ConsumeFloatIf(42, "bulge", nil)
@@ -472,32 +463,26 @@ func ParseAcDbVertex(r *Reader, _ *entity.MText) error {
 	r.ConsumeFloatIf(74, "polyface mesh vertex index", nil)
 
 	r.ConsumeNumberIf(91, DecRadix, "vertex identifier", nil)
-
-	return r.Err()
 }
 
 // TODO: implement entity entity.Point
-func ParseAcDbPoint(r *Reader, _ *entity.MText) error {
+func ParseAcDbPoint(r *Reader, _ *entity.MText) {
 	if r.AssertNextLine("AcDbPoint") != nil {
-		return r.Err()
+		return
 	}
 
-	coord3D := [3]float64{0.0, 0.0, 0.0}
-
-	r.ConsumeCoordinates(coord3D[:])
+	r.ConsumeCoordinates(coords3D[:])
 	r.ConsumeNumberIf(39, DecRadix, "thickness", nil)
 
 	// XYZ extrusion direction
 	// optional default 0, 0, 1
-	r.ConsumeCoordinatesIf(210, coord3D[:])
+	r.ConsumeCoordinatesIf(210, coords3D[:])
 	r.ConsumeFloatIf(50, "angle of the x axis", nil)
-
-	return r.Err()
 }
 
-func ParseAcDbBlockReference(r *Reader, insert *entity.Insert) error {
+func ParseAcDbBlockReference(r *Reader, insert *entity.Insert) {
 	if r.AssertNextLine("AcDbBlockReference") != nil {
-		return r.Err()
+		return
 	}
 
 	r.ConsumeNumberIf(66, DecRadix, "attributes follow", &insert.AttributesFollow)
@@ -517,15 +502,12 @@ func ParseAcDbBlockReference(r *Reader, insert *entity.Insert) error {
 
 	// optional default = 0, 0, 1
 	// XYZ extrusion direction
-	coord3D := [3]float64{0.0, 0.0, 0.0}
-	r.ConsumeCoordinatesIf(210, coord3D[:])
-
-	return r.Err()
+	r.ConsumeCoordinatesIf(210, coords3D[:])
 }
 
-func ParseAcDbBlockBegin(r *Reader, block *blocks.Block) error {
+func ParseAcDbBlockBegin(r *Reader, block *blocks.Block) {
 	if r.AssertNextLine("AcDbBlockBegin") != nil {
-		return r.Err()
+		return
 	}
 
 	r.ConsumeStr(&block.BlockName) // [2] block name
@@ -534,13 +516,11 @@ func ParseAcDbBlockBegin(r *Reader, block *blocks.Block) error {
 
 	r.ConsumeStr(&block.OtherName) // [3] block name
 	r.ConsumeStr(&block.XRefPath)  // [1] Xref path name
-
-	return r.Err()
 }
 
-func ParseAcDbAttribute(r *Reader, attrib *entity.Attrib) error {
+func ParseAcDbAttribute(r *Reader, attrib *entity.Attrib) {
 	if r.AssertNextLine("AcDbAttribute") != nil {
-		return r.Err()
+		return
 	}
 
 	r.ConsumeStr(&attrib.Tag) // [2] Attribute tag
@@ -565,16 +545,11 @@ func ParseAcDbAttribute(r *Reader, attrib *entity.Attrib) error {
 		r.ConsumeStr(nil)
 		code, err = r.PeekCode()
 	}
-	if err != nil {
-		return err
-	}
-
-	return r.Err()
 }
 
-func ParseAcDbAttributeDefinition(r *Reader, attdef *entity.Attdef) error {
+func ParseAcDbAttributeDefinition(r *Reader, attdef *entity.Attdef) {
 	if r.AssertNextLine("AcDbAttributeDefinition") != nil {
-		return r.Err()
+		return
 	}
 
 	r.ConsumeStr(&attdef.Prompt) // [3] prompt string
@@ -589,19 +564,16 @@ func ParseAcDbAttributeDefinition(r *Reader, attdef *entity.Attdef) error {
 	r.ConsumeNumberIf(72, DecRadix, "drawing direction", &attdef.DrawingDirection)
 
 	r.ConsumeCoordinatesIf(11, attdef.Direction[:])
-
-	return HelperParseEmbeddedObject(r)
+	HelperParseEmbeddedObject(r)
 }
 
-func ParseAcDbDimension(r *Reader, _ *entity.Attdef) error {
+func ParseAcDbDimension(r *Reader, _ *entity.Attdef) {
 	if r.AssertNextLine("AcDbDimension") != nil {
-		return r.Err()
+		return
 	}
 
 	r.ConsumeNumber(280, DecRadix, "version number", nil)
 	r.ConsumeStr(nil) // name of the block
-
-	coords3D := [3]float64{0.0, 0.0, 0.0}
 
 	r.ConsumeCoordinates(coords3D[:])
 	r.ConsumeCoordinates(coords3D[:])
@@ -630,67 +602,40 @@ func ParseAcDbDimension(r *Reader, _ *entity.Attdef) error {
 	switch dim {
 	// should be acdb3pointangulardimension
 	case "AcDb2LineAngularDimension":
-		r.ConsumeFloat(13, "point for linear and angular dimension", nil)
-		r.ConsumeFloat(23, "point for linear and angular dimension", nil)
-		r.ConsumeFloat(33, "point for linear and angular dimension", nil)
-		r.ConsumeFloat(14, "point for linear and angular dimension", nil)
-		r.ConsumeFloat(24, "point for linear and angular dimension", nil)
-		r.ConsumeFloat(34, "point for linear and angular dimension", nil)
-		r.ConsumeFloat(15, "point for diameter, radius, and angular dimension", nil)
-		r.ConsumeFloat(25, "point for diameter, radius, and angular dimension", nil)
-		r.ConsumeFloat(35, "point for diameter, radius, and angular dimension", nil)
+		r.ConsumeCoordinates(coords3D[:]) // point for linear and angular dimension
+		r.ConsumeCoordinates(coords3D[:]) // point for linear and angular dimension
+		r.ConsumeCoordinates(coords3D[:]) // point for diameter, radius, and angular dimension
 	case "AcDbAlignedDimension":
-		r.ConsumeFloatIf(12, "insertion point for clones of a dimension", nil)
-		r.ConsumeFloatIf(22, "insertion point for clones of a dimension", nil)
-		r.ConsumeFloatIf(32, "insertion point for clones of a dimension", nil)
-		r.ConsumeFloat(13, "definition point for linear and angular dimensions", nil)
-		r.ConsumeFloat(23, "definition point for linear and angular dimensions", nil)
-		r.ConsumeFloat(33, "definition point for linear and angular dimensions", nil)
-		r.ConsumeFloat(14, "definition point for linear and angular dimensions", nil)
-		r.ConsumeFloat(24, "definition point for linear and angular dimensions", nil)
-		r.ConsumeFloat(34, "definition point for linear and angular dimensions", nil)
+		r.ConsumeCoordinatesIf(12, coords3D[:]) // insertion point for clones of a dimension
+		r.ConsumeCoordinates(coords3D[:])       // definition point for linear and angular dimensions
+		r.ConsumeCoordinates(coords3D[:])       // definition point for linear and angular dimensions
 		r.ConsumeFloatIf(50, "angle of rotated, horizontal, or vertical dimensions", nil)
 		r.ConsumeFloatIf(52, "oblique angle", nil)
 		r.ConsumeStrIf(100, nil) // subclass marker AcDbRotatedDimension
 	default:
 		log.Fatal(dim)
 	}
-
-	return r.Err()
 }
 
-func ParseAcDbViewport(r *Reader, _ *entity.MText) error {
+func ParseAcDbViewport(r *Reader, _ *entity.MText) {
 	if r.AssertNextLine("AcDbViewport") != nil {
-		return r.Err()
+		return
 	}
 
-	coords3D := [3]float64{0, 0, 0}
 	r.ConsumeCoordinates(coords3D[:])
-
 	r.ConsumeFloat(40, "width in paper space units", nil)
 	r.ConsumeFloat(41, "height in paper space units", nil)
-
 	r.ConsumeFloat(68, "viewport status field", nil)
-	// => -1 0 On, 0 = Off
 
+	// => -1 0 On, 0 = Off
 	r.ConsumeNumber(69, DecRadix, "viewport id", nil)
 
-	r.ConsumeFloat(12, "center point x", nil)
-	r.ConsumeFloat(22, "center point y", nil)
-	r.ConsumeFloat(13, "snap base point x", nil)
-	r.ConsumeFloat(23, "snap base point y", nil)
-	r.ConsumeFloat(14, "snap spacing x", nil)
-	r.ConsumeFloat(24, "snap spacing y", nil)
-	r.ConsumeFloat(15, "grid spacing x", nil)
-	r.ConsumeFloat(25, "grid spacing y", nil)
-
-	r.ConsumeFloat(16, "view direction vector x", nil)
-	r.ConsumeFloat(26, "view direction vector y", nil)
-	r.ConsumeFloat(36, "view direction vector z", nil)
-
-	r.ConsumeFloat(17, "view target point y", nil)
-	r.ConsumeFloat(27, "view target point x", nil)
-	r.ConsumeFloat(37, "view target point z", nil)
+	r.ConsumeCoordinates(coords2D[:]) // center point
+	r.ConsumeCoordinates(coords2D[:]) // snap base point
+	r.ConsumeCoordinates(coords2D[:]) // snap spacing point
+	r.ConsumeCoordinates(coords2D[:]) // grid spacing point
+	r.ConsumeCoordinates(coords3D[:]) // view direction vector
+	r.ConsumeCoordinates(coords3D[:]) // view target point
 
 	r.ConsumeFloat(42, "perspective lens length", nil)
 	r.ConsumeFloat(43, "front clip plane z value", nil)
@@ -712,17 +657,10 @@ func ParseAcDbViewport(r *Reader, _ *entity.MText) error {
 	r.ConsumeNumber(281, DecRadix, "render mode", nil)
 	r.ConsumeNumber(71, DecRadix, "ucs per viewport flag", nil)
 	r.ConsumeNumber(74, DecRadix, "display ucs icon at ucs origin flag", nil)
-	r.ConsumeFloat(110, "ucs origin x", nil)
-	r.ConsumeFloat(120, "ucs origin y", nil)
-	r.ConsumeFloat(130, "ucs origin z", nil)
 
-	r.ConsumeFloat(111, "ucs x-axis x", nil)
-	r.ConsumeFloat(121, "ucs x-axis y", nil)
-	r.ConsumeFloat(131, "ucs x-axis z", nil)
-
-	r.ConsumeFloat(112, "ucs y-axis x", nil)
-	r.ConsumeFloat(122, "ucs y-axis y", nil)
-	r.ConsumeFloat(132, "ucs y-axis z", nil)
+	r.ConsumeCoordinates(coords3D[:]) // ucs origin
+	r.ConsumeCoordinates(coords3D[:]) // ucs x-axis
+	r.ConsumeCoordinates(coords3D[:]) // ucs y-axis
 
 	r.ConsumeNumberIf(345, DecRadix, "id/handle of AcDbUCSTableRecord if UCS is a named ucs", nil)
 	r.ConsumeNumberIf(346, DecRadix, "id/handle of AcDbUCSTableRecord of base ucs", nil)
@@ -749,6 +687,4 @@ func ParseAcDbViewport(r *Reader, _ *entity.MText) error {
 	r.ConsumeNumberIf(343, DecRadix, "soft pointer reference to id/handle", nil)
 	r.ConsumeNumberIf(344, DecRadix, "soft pointer reference to id/handle", nil)
 	r.ConsumeNumberIf(91, DecRadix, "soft pointer reference to id/handle", nil)
-
-	return r.Err()
 }
