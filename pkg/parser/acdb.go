@@ -66,7 +66,8 @@ func ParseAcDbPolyline(r *Reader, polyline *entity.Polyline) {
 		return
 	}
 
-	r.ConsumeNumber(90, DecRadix, "number of vertices", &polyline.Vertices)
+	vertices := int64(0)
+	r.ConsumeNumber(90, DecRadix, "number of vertices", &vertices)
 	r.ConsumeNumber(70, DecRadix, "polyline flag", &polyline.Flag)
 
 	if !r.ConsumeFloatIf(43, "line width for each vertex", nil) {
@@ -74,13 +75,13 @@ func ParseAcDbPolyline(r *Reader, polyline *entity.Polyline) {
 		//log.Fatal("[ENTITIES(", Line, ")] TODO: implement line width for each vertex")
 	}
 
-	for i := int64(0); i < polyline.Vertices; i++ {
+	for i := int64(0); i < vertices; i++ {
 		bulge := 0.0
 
 		r.ConsumeCoordinates(coords2D[:])
 
 		r.ConsumeFloatIf(40, "default start width", nil)
-		r.ConsumeFloatIf(41, "default start width", nil)
+		r.ConsumeFloatIf(41, "default end width", nil)
 
 		r.ConsumeFloatIf(42, "expected bulge", &bulge)
 		r.ConsumeNumberIf(91, DecRadix, "vertex identifier", nil)
@@ -154,9 +155,6 @@ func ParseAcDbText(r *Reader, text *entity.Text) {
 	r.ConsumeNumberIf(72, DecRadix, "horizontal text justification", &text.HJustification)
 
 	r.ConsumeCoordinatesIf(11, text.Vector[:])
-	// XYZ extrusion direction
-	// optional default 0, 0, 1
-	// TODO: support extrusion?
 	r.ConsumeCoordinatesIf(210, text.Vector[:])
 
 	line, _ := r.PeekLine()
@@ -246,20 +244,18 @@ func ParseAcDbHatch(r *Reader, hatch *entity.Hatch) {
 		return
 	}
 
-	// TODO: elevation ignored since 2d
-	r.ConsumeCoordinates(coords3D[:])
-	// TODO: extrusion ignored since 2d
+	r.ConsumeCoordinates(coords3D[:]) // elevation
 	r.ConsumeCoordinates(coords3D[:])
 
 	r.ConsumeStr(&hatch.PatternName)
 	r.ConsumeNumber(70, DecRadix, "solid fill flag", &hatch.SolidFill)
 	r.ConsumeNumber(71, DecRadix, "associativity flag", &hatch.Associative)
 
-	boundaryPaths := int64(0)
+	boundaryPaths, pathTypeFlag := int64(0), int64(0)
+
 	r.ConsumeNumber(91, DecRadix, "boundary paths", &boundaryPaths)
 
 	for i := int64(0); i < boundaryPaths; i++ {
-		pathTypeFlag := int64(0)
 		// [92] Boundary path type flag (bit coded):
 		// 0 = Default | 1 = External | 2  = Polyline
 		// 4 = Derived | 8 = Textbox  | 16 = Outermost
@@ -268,16 +264,24 @@ func ParseAcDbHatch(r *Reader, hatch *entity.Hatch) {
 		if pathTypeFlag&2 == 2 {
 			polyline := entity.NewPolyline()
 
-			// maybe consider?
-			r.ConsumeNumber(72, DecRadix, "has bulge flag", nil)
-			r.ConsumeNumber(73, DecRadix, "is closed flag", nil)
-			r.ConsumeNumber(93, DecRadix, "number of polyline vertices", &polyline.Vertices)
+			hasBulge := int64(0)
+			r.ConsumeNumber(72, DecRadix, "has bulge flag", &hasBulge)
+			r.ConsumeNumber(73, DecRadix, "is closed flag", &polyline.Flag)
+			vertices := int64(0)
+			r.ConsumeNumber(93, DecRadix, "number of polyline vertices", &vertices)
 
-			for vertex := int64(0); vertex < polyline.Vertices; vertex++ {
-				coords2D, bulge := [2]float64{0.0, 0.0}, 0.0
-				r.ConsumeCoordinates(coords2D[:])
-				r.ConsumeFloatIf(42, "expected bulge", &bulge)
-				polyline.AppendPLine(coords2D, bulge)
+			if hasBulge == 1 {
+				bulge := 0.0
+				for vertex := int64(0); vertex < vertices; vertex++ {
+					r.ConsumeCoordinates(coords2D[:])
+					r.ConsumeFloat(42, "expected bulge", &bulge)
+					polyline.AppendPLine(coords2D, bulge)
+				}
+			} else {
+				for vertex := int64(0); vertex < vertices; vertex++ {
+					r.ConsumeCoordinates(coords2D[:])
+					polyline.AppendPLine(coords2D, 0.0)
+				}
 			}
 
 			hatch.Polylines = append(hatch.Polylines, polyline)
@@ -371,7 +375,7 @@ func ParseAcDbHatch(r *Reader, hatch *entity.Hatch) {
 	r.ConsumeNumber(98, DecRadix, "number of seed points", &seedPoints)
 
 	for seedPoint := int64(0); seedPoint < seedPoints; seedPoint++ {
-		r.ConsumeCoordinates(coords2D[:])
+		r.ConsumeCoordinates(hatch.SeedPoint[:2])
 	}
 
 	r.ConsumeNumberIf(450, DecRadix, "indicates solid hatch or gradient", nil)

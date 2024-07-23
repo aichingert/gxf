@@ -4,7 +4,6 @@ type Polyline struct {
 	Entity *EntityData
 
 	Flag        int64
-	Vertices    int64
 	Coordinates []PLine
 }
 
@@ -18,7 +17,6 @@ func NewPolyline() *Polyline {
 	return &Polyline{
 		Entity:      NewEntityData(),
 		Flag:        0,
-		Vertices:    0,
 		Coordinates: nil,
 	}
 }

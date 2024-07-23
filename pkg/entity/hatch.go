@@ -13,8 +13,11 @@ type Hatch struct {
 	Scale   float64
 	Double  int64
 
+	SeedPoint    [3]float64
 	PatternLines []*PatternLine
 
+	// TODO: add boundary path flag for each boundary path
+	// TODO: properly spereate boundary paths
 	Lines     []*Line
 	Polylines []*Polyline
 	Arcs      []*Arc
@@ -38,6 +41,7 @@ func NewHatch() *Hatch {
 		SolidFill:   0,
 		Associative: 0,
 
+		SeedPoint: [3]float64{0, 0, 0},
 		Lines:     nil,
 		Polylines: nil,
 		Arcs:      nil,

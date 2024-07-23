@@ -62,6 +62,7 @@ func parseTable(r *Reader, dxf *drawing.Dxf) {
 // TODO: maybe put this in acdb as well
 func parseLayerTable(r *Reader, dxf *drawing.Dxf) {
 	r.ConsumeNumber(5, HexRadix, "handle", nil)
+
 	// TODO: set hard owner/handle to owner dictionary
 	if r.ConsumeStrIf(102, nil) { // consumeIf => ex. {ACAD_XDICTIONARY
 		r.ConsumeStr(nil) // 360 => hard owner
@@ -109,4 +110,5 @@ func parseAcDbLayerTableRecord(r *Reader, dxf *drawing.Dxf) {
 	r.ConsumeNumber(348, DecRadix, "not documented", nil)
 
 	dxf.Layers[layerName] = layer
+	// TODO: properly spereate boundary paths
 }

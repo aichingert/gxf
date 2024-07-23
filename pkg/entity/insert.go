@@ -17,6 +17,7 @@ type Insert struct {
 	Attributes  []*Attrib
 }
 
+// TODO: properly spereate boundary paths
 func NewInsert() *Insert {
 	return &Insert{
 		Entity:           NewEntityData(),
