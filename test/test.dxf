@@ -1156,14 +1156,6 @@ AcDbPolyline
 326.418307086616
  20
 -329.982283388572
-1001
-AcDbBlockRepETag
-1070
-     1
-1071
-        7
-1005
-ED
   0
 LINE
   5
@@ -2276,14 +2268,6 @@ AcDbPolyline
 257.090329716699
  20
 -161.718499427413
-1001
-AcDbBlockRepETag
-1070
-     1
-1071
-        0
-1005
-0
   0
 LWPOLYLINE
   5
@@ -2318,14 +2302,6 @@ AcDbPolyline
 -326.418307086611
  20
 -329.977983625045
-1001
-AcDbBlockRepETag
-1070
-     1
-1071
-        6
-1005
-0
   0
 LWPOLYLINE
   5
@@ -2412,14 +2388,6 @@ AcDbPolyline
 -76.17227789834
  20
 -155.616327618211
-1001
-AcDbBlockRepETag
-1070
-     1
-1071
-        8
-1005
-0
   0
 LWPOLYLINE
   5
@@ -2592,14 +2560,6 @@ AcDbPolyline
 -76.17227789834
  20
 -155.616327618211
-1001
-AcDbBlockRepETag
-1070
-     1
-1071
-        9
-1005
-0
   0
 HATCH
   5
@@ -2732,14 +2692,6 @@ AcDbCircle
 0.0
  40
 22.49439406634541
-1001
-AcDbBlockRepETag
-1070
-     1
-1071
-       13
-1005
-0
   0
 LWPOLYLINE
   5

@@ -7,23 +7,31 @@ type Hatch struct {
 	SolidFill   int64
 	Associative int64
 
-	Style   int64
-	Pattern int64
-	Angle   float64
-	Scale   float64
-	Double  int64
+	Style     int64
+	Pattern   int64
+	Angle     float64
+	Scale     float64
+	Double    int64
+	PixelSize float64
 
-	SeedPoint    [3]float64
-	PatternLines []*PatternLine
+	SeedPoint     [3]float64
+	PatternLines  []*PatternLine
+	BoundaryPaths []*BoundaryPath
+}
 
-	// TODO: add boundary path flag for each boundary path
-	// TODO: properly spereate boundary paths
-	Lines     []*Line
-	Polylines []*Polyline
-	Arcs      []*Arc
-	Ellipses  []*Ellipse
+// BoundaryPath if the 2nd bit is set in flag
+// then it is a PolylinePathType and contains
+// only polylines otherwise it's a mix of all
+// other EdgeTypes (line, arc, ellipse, spline)
+type BoundaryPath struct {
+	Flag int64
+
+	Polyline *Polyline
 
 	// TODO: spline
+	Lines    []*Line
+	Arcs     []*Arc
+	Ellipses []*Ellipse
 }
 
 type PatternLine struct {
@@ -42,10 +50,6 @@ func NewHatch() *Hatch {
 		Associative: 0,
 
 		SeedPoint: [3]float64{0, 0, 0},
-		Lines:     nil,
-		Polylines: nil,
-		Arcs:      nil,
-		Ellipses:  nil,
 	}
 }
 

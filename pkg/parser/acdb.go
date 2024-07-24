@@ -251,90 +251,10 @@ func ParseAcDbHatch(r *Reader, hatch *entity.Hatch) {
 	r.ConsumeNumber(70, DecRadix, "solid fill flag", &hatch.SolidFill)
 	r.ConsumeNumber(71, DecRadix, "associativity flag", &hatch.Associative)
 
-	boundaryPaths, pathTypeFlag := int64(0), int64(0)
-
+	boundaryPaths := int64(0)
 	r.ConsumeNumber(91, DecRadix, "boundary paths", &boundaryPaths)
-
 	for i := int64(0); i < boundaryPaths; i++ {
-		// [92] Boundary path type flag (bit coded):
-		// 0 = Default | 1 = External | 2  = Polyline
-		// 4 = Derived | 8 = Textbox  | 16 = Outermost
-		r.ConsumeNumber(92, DecRadix, "boundary path type flag", &pathTypeFlag)
-
-		if pathTypeFlag&2 == 2 {
-			polyline := entity.NewPolyline()
-
-			hasBulge := int64(0)
-			r.ConsumeNumber(72, DecRadix, "has bulge flag", &hasBulge)
-			r.ConsumeNumber(73, DecRadix, "is closed flag", &polyline.Flag)
-			vertices := int64(0)
-			r.ConsumeNumber(93, DecRadix, "number of polyline vertices", &vertices)
-
-			if hasBulge == 1 {
-				bulge := 0.0
-				for vertex := int64(0); vertex < vertices; vertex++ {
-					r.ConsumeCoordinates(coords2D[:])
-					r.ConsumeFloat(42, "expected bulge", &bulge)
-					polyline.AppendPLine(coords2D, bulge)
-				}
-			} else {
-				for vertex := int64(0); vertex < vertices; vertex++ {
-					r.ConsumeCoordinates(coords2D[:])
-					polyline.AppendPLine(coords2D, 0.0)
-				}
-			}
-
-			hatch.Polylines = append(hatch.Polylines, polyline)
-		} else {
-			edges, edgeType := int64(0), int64(0)
-
-			r.ConsumeNumber(93, DecRadix, "number of edges in this boundary path", &edges)
-
-			for edge := int64(0); edge < edges; edge++ {
-				r.ConsumeNumber(72, DecRadix, "edge type data", &edgeType)
-
-				switch edgeType {
-				case 1: // Line
-					line := entity.NewLine()
-					r.ConsumeCoordinates(line.Src[:2])
-					r.ConsumeCoordinates(line.Dst[:2])
-					hatch.Lines = append(hatch.Lines, line)
-				case 2: // Circular arc
-					arc := entity.NewArc()
-					r.ConsumeCoordinates(arc.Circle.Coordinates[:2])
-					r.ConsumeFloat(40, "radius", &arc.Circle.Radius)
-
-					r.ConsumeFloat(50, "start angle", &arc.StartAngle)
-					r.ConsumeFloat(51, "end angle", &arc.EndAngle)
-					r.ConsumeNumber(73, DecRadix, "is counterclockwise", &arc.Counterclockwise)
-					hatch.Arcs = append(hatch.Arcs, arc)
-				case 3: // Elliptic arc
-					ellipse := entity.NewEllipse()
-
-					r.ConsumeCoordinates(ellipse.Center[:2])
-					r.ConsumeCoordinates(ellipse.EndPoint[:2])
-					r.ConsumeFloat(40, "length of minor axis", &ellipse.Ratio)
-					r.ConsumeFloat(50, "start angle", &ellipse.Start)
-					r.ConsumeFloat(51, "end angle", &ellipse.End)
-					r.ConsumeFloat(73, "is counterclockwise", nil)
-
-					hatch.Ellipses = append(hatch.Ellipses, ellipse)
-				case 4: // Spine
-					log.Fatal("hatch spine")
-				default:
-					log.Println("[AcDbHatch(", Line, ")] invalid edge type data", edgeType)
-					r.err = NewParseError("invalid edge type data")
-					return
-				}
-			}
-		}
-
-		boundaryObjectSize, boundaryObjectRef := int64(0), int64(0)
-
-		r.ConsumeNumber(97, DecRadix, "number of source boundary objects", &boundaryObjectSize)
-		for i := int64(0); i < boundaryObjectSize; i++ {
-			r.ConsumeNumber(330, HexRadix, "reference to source object", &boundaryObjectRef)
-		}
+		hatch.BoundaryPaths = append(hatch.BoundaryPaths, ParseBoundaryPath(r))
 	}
 
 	r.ConsumeNumber(75, DecRadix, "hatch style", &hatch.Style)
@@ -369,9 +289,9 @@ func ParseAcDbHatch(r *Reader, hatch *entity.Hatch) {
 		hatch.AppendPatternLine(angle, base, offset, dashes)
 	}
 
-	r.ConsumeFloatIf(47, "pixel size used to determine density to perform ray casting", nil)
+	r.ConsumeFloatIf(47, "pixel size used to determine the density", &hatch.PixelSize)
 
-	seedPoints := int64(0)
+	seedPoints, nColors := int64(0), int64(0)
 	r.ConsumeNumber(98, DecRadix, "number of seed points", &seedPoints)
 
 	for seedPoint := int64(0); seedPoint < seedPoints; seedPoint++ {
@@ -380,23 +300,96 @@ func ParseAcDbHatch(r *Reader, hatch *entity.Hatch) {
 
 	r.ConsumeNumberIf(450, DecRadix, "indicates solid hatch or gradient", nil)
 	r.ConsumeNumberIf(451, DecRadix, "zero is reserved for future use", nil)
-
-	// default 0,0
 	r.ConsumeFloatIf(460, "rotation angle in radians for gradients", nil)
 	r.ConsumeFloatIf(461, "gradient definition", nil)
 	r.ConsumeNumberIf(452, DecRadix, "records how colors were defined", nil)
 	r.ConsumeFloatIf(462, "color tint value used by dialog", nil)
-
-	nColors := int64(0)
 	r.ConsumeNumberIf(453, DecRadix, "number of colors", &nColors)
-
 	for color := int64(0); color < nColors; color++ {
 		r.ConsumeFloatIf(463, "reserved for future use", nil)
 		r.ConsumeNumberIf(63, DecRadix, "not documented", nil)
 		r.ConsumeNumberIf(421, DecRadix, "not documented", nil)
 	}
-
 	r.ConsumeStrIf(470, nil) // string default = LINEAR
+}
+
+func ParseBoundaryPath(r *Reader) *entity.BoundaryPath {
+	path := &entity.BoundaryPath{}
+
+	// [92] Boundary path type flag (bit coded):
+	// 0 = Default | 1 = External | 2  = Polyline
+	// 4 = Derived | 8 = Textbox  | 16 = Outermost
+	r.ConsumeNumber(92, DecRadix, "boundary path type flag", &path.Flag)
+
+	if path.Flag&2 == 2 {
+		path.Polyline = &entity.Polyline{}
+		hasBulge, bulge, vertices := int64(0), 0.0, int64(0)
+
+		r.ConsumeNumber(72, DecRadix, "has bulge flag", &hasBulge)
+		r.ConsumeNumber(73, DecRadix, "is closed flag", &path.Polyline.Flag)
+		r.ConsumeNumber(93, DecRadix, "number of polyline vertices", &vertices)
+
+		for vertex := int64(0); vertex < vertices; vertex++ {
+			r.ConsumeCoordinates(coords2D[:])
+			if hasBulge == 1 {
+				r.ConsumeFloat(42, "expected bulge", &bulge)
+			}
+			path.Polyline.AppendPLine(coords2D, bulge)
+		}
+	} else {
+		edges, edgeType := int64(0), int64(0)
+
+		r.ConsumeNumber(93, DecRadix, "number of edges in this boundary path", &edges)
+
+		for edge := int64(0); edge < edges; edge++ {
+			r.ConsumeNumber(72, DecRadix, "edge type data", &edgeType)
+
+			switch edgeType {
+			case 1: // Line
+				line := entity.NewLine()
+				line.Entity = nil
+				r.ConsumeCoordinates(line.Src[:2])
+				r.ConsumeCoordinates(line.Dst[:2])
+				path.Lines = append(path.Lines, line)
+			case 2: // Circular arc
+				arc := entity.NewArc()
+				arc.Entity = nil
+				r.ConsumeCoordinates(arc.Circle.Coordinates[:2])
+				r.ConsumeFloat(40, "radius", &arc.Circle.Radius)
+
+				r.ConsumeFloat(50, "start angle", &arc.StartAngle)
+				r.ConsumeFloat(51, "end angle", &arc.EndAngle)
+				r.ConsumeNumber(73, DecRadix, "is counterclockwise", &arc.Counterclockwise)
+				path.Arcs = append(path.Arcs, arc)
+			case 3: // Elliptic arc
+				ellipse := entity.NewEllipse()
+				ellipse.Entity = nil
+
+				r.ConsumeCoordinates(ellipse.Center[:2])
+				r.ConsumeCoordinates(ellipse.EndPoint[:2])
+				r.ConsumeFloat(40, "length of minor axis", &ellipse.Ratio)
+				r.ConsumeFloat(50, "start angle", &ellipse.Start)
+				r.ConsumeFloat(51, "end angle", &ellipse.End)
+				r.ConsumeFloat(73, "is counterclockwise", nil)
+
+				path.Ellipses = append(path.Ellipses, ellipse)
+			case 4: // Spine
+				log.Fatal("[AcDbHatch(", Line, ")] TODO: implement boundary path spline")
+			default:
+				log.Println("[AcDbHatch(", Line, ")] invalid edge type data", edgeType)
+				r.err = NewParseError("invalid edge type data")
+				return path
+			}
+		}
+	}
+
+	boundaryObjectSize, boundaryObjectRef := int64(0), int64(0)
+	r.ConsumeNumber(97, DecRadix, "number of source boundary objects", &boundaryObjectSize)
+	for i := int64(0); i < boundaryObjectSize; i++ {
+		r.ConsumeNumber(330, HexRadix, "reference to source object", &boundaryObjectRef)
+	}
+
+	return path
 }
 
 func ParseAcDbEllipse(r *Reader, ellipse *entity.Ellipse) {
