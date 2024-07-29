@@ -69,11 +69,7 @@ func ParseAcDbPolyline(r *Reader, polyline *entity.Polyline) {
 	vertices := int64(0)
 	r.ConsumeNumber(90, DecRadix, "number of vertices", &vertices)
 	r.ConsumeNumber(70, DecRadix, "polyline flag", &polyline.Flag)
-
-	if !r.ConsumeFloatIf(43, "line width for each vertex", nil) {
-		//r.ConsumeFloat(43, "", nil)
-		//log.Fatal("[ENTITIES(", Line, ")] TODO: implement line width for each vertex")
-	}
+	r.ConsumeFloatIf(43, "line width for each vertex", nil)
 
 	for i := int64(0); i < vertices; i++ {
 		bulge := 0.0
@@ -376,7 +372,6 @@ func ParseBoundaryPath(r *Reader) *entity.BoundaryPath {
 			case 4: // Spine
 				log.Fatal("[AcDbHatch(", Line, ")] TODO: implement boundary path spline")
 			default:
-				log.Println("[AcDbHatch(", Line, ")] invalid edge type data", edgeType)
 				r.err = NewParseError("invalid edge type data")
 				return path
 			}

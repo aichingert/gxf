@@ -26,6 +26,46 @@ func TestMain(m *testing.M) {
 	m.Run()
 }
 
+func TestCorrectNumberOfInserts(t *testing.T) {
+	const expected = 3
+	ok := assert.Len(t, plan.Inserts, expected)
+
+	if !ok {
+		t.Fatal("expected ", expected, " inserts in test.dxf file: actual", len(plan.Inserts))
+	}
+}
+
+func TestParsedInsertsCorrectly(t *testing.T) {
+	expected := []*entity.Insert{
+		{BlockName: "STANDARD_RZ_PR"},
+		{BlockName: "STANDARD_SL", Attributes: []*entity.Attrib{{
+			Entity: &entity.EntityData{Handle: 65932, Owner: 65924, LayerName: "0"},
+			Text: &entity.Text{
+				Entity:      &entity.EntityData{},
+				Style:       "STANDARD",
+				Flags:       1,
+				Thickness:   1,
+				XScale:      1,
+				Rotation:    270,
+				Height:      0.0025,
+				Vector:      [3]float64{0, 0, 0},
+				Coordinates: [3]float64{37.312, 33.3717, 0},
+			},
+			Tag:   "System",
+			Flags: 1,
+		}}},
+		{BlockName: "QRCode"},
+	}
+
+	for i, insert := range plan.Inserts {
+		assert.Equal(t, expected[i].BlockName, insert.BlockName)
+
+		if expected[i].Attributes != nil {
+			assert.Equal(t, expected[i].Attributes, insert.Attributes)
+		}
+	}
+}
+
 func TestCorrectNumberOfLayoutTableParsed(t *testing.T) {
 	const expected = 27
 	ok := assert.Equal(t, len(plan.Layers), expected)

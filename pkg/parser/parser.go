@@ -2,7 +2,6 @@ package parser
 
 import (
 	"github.com/aichingert/dxf/pkg/drawing"
-	"log"
 	"os"
 )
 
@@ -27,8 +26,6 @@ func FromFile(filename string) (*drawing.Dxf, error) {
 			if reader.err != nil {
 				return dxf, err
 			}
-
-			log.Println(section)
 
 			switch section.Line {
 			case "HEADER":

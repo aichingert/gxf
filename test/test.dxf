@@ -1250,7 +1250,7 @@ AcDbEntity
 0
 100
 AcDbBlockEnd
-    0
+  0
 BLOCK
   5
 2C5F
@@ -2776,8 +2776,82 @@ AcDbEntity
 10_yellow
 100
 AcDbBlockReference
+ 66
+    1
   2
 STANDARD_SL
+ 10
+1650.0
+ 20
+230.0
+ 30
+0.0
+  0
+ATTRIB
+  5
+1018C
+330
+10184
+100
+AcDbEntity
+  8
+0
+100
+AcDbText
+ 10
+37.312
+ 20
+33.3717
+ 30
+0.0
+ 40
+0.0025
+  1
+
+ 50
+270.0
+100
+AcDbAttribute
+  2
+System
+ 70
+    1
+280
+    0
+ 71
+    1
+ 72
+    0
+ 11
+0.0
+ 21
+0.0
+ 31
+0.0
+  0
+SEQEND
+  5
+101A2
+330
+10184
+100
+AcDbEntity
+  8
+10_yellow
+  0
+INSERT
+  5
+2FD5
+330
+1F
+100
+AcDbEntity
+  8
+10_yellow
+100
+AcDbBlockReference
+  2
+QRCode
  10
 1650.0
  20
