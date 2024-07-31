@@ -8,14 +8,14 @@ import (
 )
 
 func ParseBlocks(r *Reader, dxf *drawing.Dxf) {
-	for r.ScanDxfLine() {
-		switch r.DxfLine().Line {
+	for {
+		switch r.consumeNext() {
 		case "BLOCK":
 			ParseBlock(r, dxf)
 		case "ENDSEC":
 			return
 		default:
-			r.err = NewParseError(fmt.Sprintf("Block(%d): %s", Line, r.DxfLine().Line))
+			r.err = NewParseError(fmt.Sprintf("Block(%d): %s", Line, r.dxfLine.Line))
 			return
 		}
 	}
@@ -38,5 +38,5 @@ func ParseBlockEnd(r *Reader, _ *drawing.Dxf) {
 	endblk := blocks.NewBlock()
 
 	ParseAcDbEntity(r, endblk.Entity)
-	r.AssertNextLine("AcDbBlockEnd")
+	_ = r.assertNextLine("AcDbBlockEnd")
 }

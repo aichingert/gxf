@@ -8,8 +8,8 @@ import (
 )
 
 func ParseEntities(r *Reader, entities entity.Entities) {
-	for r.ScanDxfLine() {
-		switch r.DxfLine().Line {
+	for {
+		switch r.consumeNext() {
 		case "LINE":
 			ParseLine(r, entities)
 		case "POLYLINE":
@@ -45,18 +45,16 @@ func ParseEntities(r *Reader, entities entity.Entities) {
 		case "INSERT":
 			ParseInsert(r, entities)
 		case "ENDSEC":
-			fallthrough
+			return
 		case "ENDBLK":
 			return
 		default:
-			r.err = NewParseError(fmt.Sprintf("unknown entity: %s", r.DxfLine().Line))
+			r.err = NewParseError(fmt.Sprintf("unknown entity: %s", r.dxfLine.Line))
 			return
 		}
 
-		peek, err := r.PeekCode()
-		for err == nil && peek != 0 {
-			r.ConsumeStr(nil)
-			peek, err = r.PeekCode()
+		for r.dxfLine.Code != 0 {
+			r.consume()
 		}
 	}
 }
@@ -77,14 +75,12 @@ func ParsePolyline(r *Reader, entities entity.Entities) {
 	ParseAcDbEntity(r, polyline.Entity)
 	ParseAcDb2dPolyline(r, polyline)
 
-	peek, err := r.PeekCode()
-	for err == nil && peek != 0 {
-		r.ConsumeStr(nil)
-		peek, err = r.PeekCode()
+	for r.dxfLine.Code != 0 {
+		r.consumeNext()
 	}
 
-	for r.ScanDxfLine() {
-		switch r.DxfLine().Line {
+	for {
+		switch r.consumeNext() {
 		case "VERTEX":
 			ParseVertex(r, entities)
 		case "SEQEND":
@@ -92,13 +88,11 @@ func ParsePolyline(r *Reader, entities entity.Entities) {
 			ParseAcDbEntity(r, polyline.Entity)
 			return
 		default:
-			log.Fatal("[", Line, "] Invalid entity: ", r.DxfLine().Line)
+			log.Fatal("[", Line, "] Invalid entity: ", r.dxfLine.Line)
 		}
 
-		peek, err := r.PeekCode()
-		for err == nil && peek != 0 {
-			r.ConsumeStr(nil)
-			peek, err = r.PeekCode()
+		for r.dxfLine.Code != 0 {
+			r.consume()
 		}
 	}
 
@@ -169,7 +163,7 @@ func ParseEllipse(r *Reader, entities entity.Entities) {
 	entities.AppendEllipse(ellipse)
 }
 
-// TODO: create entity spline
+// ParseSpline create entity spline
 func ParseSpline(r *Reader, _ entity.Entities) {
 	spline := entity.NewMText()
 
@@ -177,7 +171,7 @@ func ParseSpline(r *Reader, _ entity.Entities) {
 	ParseAcDbSpline(r, spline)
 }
 
-// TODO: create entity solid
+// ParseSolid create entity solid
 func ParseSolid(r *Reader, _ entity.Entities) {
 	solid := entity.NewMText()
 
@@ -185,7 +179,7 @@ func ParseSolid(r *Reader, _ entity.Entities) {
 	ParseAcDbTrace(r, solid)
 }
 
-// TODO: create entity vertex
+// ParseVertex create entity vertex
 func ParseVertex(r *Reader, _ entity.Entities) {
 	vertex := entity.NewMText()
 
@@ -193,7 +187,7 @@ func ParseVertex(r *Reader, _ entity.Entities) {
 	ParseAcDbVertex(r, vertex)
 }
 
-// TODO: create entity point
+// ParsePoint create entity point
 func ParsePoint(r *Reader, _ entity.Entities) {
 	point := entity.NewMText()
 
@@ -207,15 +201,13 @@ func ParseInsert(r *Reader, entities entity.Entities) {
 	ParseAcDbEntity(r, insert.Entity)
 	ParseAcDbBlockReference(r, insert)
 
-	peek, err := r.PeekCode()
-	for err == nil && peek != 0 {
-		r.ConsumeStr(nil)
-		peek, err = r.PeekCode()
+	for r.dxfLine.Code != 0 {
+		r.consumeNext()
 	}
 
 Att:
-	for insert.AttributesFollow == 1 && r.ScanDxfLine() {
-		switch r.DxfLine().Line {
+	for insert.AttributesFollow == 1 {
+		switch r.consumeNext() {
 		case "ATTRIB":
 			ParseAttrib(r, insert)
 		case "SEQEND":
@@ -223,39 +215,39 @@ Att:
 			ParseAcDbEntity(r, insert.Entity)
 			break Att
 		default:
-			log.Fatal("[INSERT(", Line, ")] invalid subclass marker ", r.DxfLine().Line)
+			log.Fatal("[INSERT(", Line, ")] invalid subclass marker ", r.dxfLine.Line)
 		}
 	}
 
 	entities.AppendInsert(insert)
 }
 
-// TODO: create entity DIMENSION
+// ParseDimension create entity DIMENSION
 func ParseDimension(r *Reader, _ entity.Entities) {
 	throwAway := entity.NewAttdef()
 
 	ParseAcDbEntity(r, throwAway.Entity)
 	ParseAcDbDimension(r, throwAway)
 
-	r.ConsumeNumberIf(290, DecRadix, "not documented", nil)
-	r.ConsumeStrIf(2, nil)
+	r.consumeNumberIf(290, DecRadix, "not documented", nil)
+	r.consumeStrIf(2, nil)
 }
 
-// TODO: create entity region
+// ParseRegion create entity region
 func ParseRegion(r *Reader, _ entity.Entities) {
 	throwAway := entity.NewMText()
 
 	ParseAcDbEntity(r, throwAway.Entity)
 
-	if r.AssertNextLine("AcDbModelerGeometry") != nil {
+	if r.assertNextLine("AcDbModelerGeometry") != nil {
 		return
 	}
 
-	r.ConsumeNumberIf(290, DecRadix, "not documented", nil)
-	r.ConsumeStrIf(2, nil)
+	r.consumeNumberIf(290, DecRadix, "not documented", nil)
+	r.consumeStrIf(2, nil)
 }
 
-// TODO: create entity viewport
+// ParseViewport create entity viewport
 func ParseViewport(r *Reader, _ entity.Entities) {
 	throwAway := entity.NewMText()
 

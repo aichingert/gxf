@@ -1,10 +1,10 @@
 module tests
 
-go 1.22.4
+go 1.22.5
 
 replace github.com/aichingert/dxf => ../.
 
-require github.com/aichingert/dxf v0.0.0-20240624134000-158a72c73cb8
+require github.com/aichingert/dxf v0.0.0
 
 require (
 	github.com/davecgh/go-spew v1.1.1 // indirect

@@ -10,9 +10,8 @@ import (
 )
 
 const (
-	DxfCodeLineSizeInBytes = 4
-	DecRadix               = 10
-	HexRadix               = 16
+	DecRadix = 10
+	HexRadix = 16
 )
 
 type Reader struct {
@@ -26,263 +25,184 @@ type DxfLine struct {
 	Line string
 }
 
-func NewReader(filename string) (*Reader, *os.File, error) {
+func NewReader(filename string) (*Reader, *os.File) {
 	file, err := os.Open(filename)
 
-	if err != nil {
-		return nil, nil, err
-	}
-
 	return &Reader{
-		err:     nil,
+		err:     err,
 		reader:  bufio.NewReader(file),
-		dxfLine: nil,
-	}, file, nil
+		dxfLine: &DxfLine{},
+	}, file
 }
 
-func (r *Reader) ScanDxfLine() bool {
-	r.dxfLine = r.ConsumeDxfLine()
-	return r.err == nil
-}
-
-func (r *Reader) DxfLine() *DxfLine {
-	return r.dxfLine
-}
-
-func (r *Reader) AssertNext(code uint16) *DxfLine {
+// Consume reads the next code and line of the dxf file
+func (r *Reader) consume() {
 	if r.err != nil {
-		return nil
+		return
 	}
 
-	line := r.ConsumeDxfLine()
+	r.dxfLine.Code, r.err = r.consumeCode()
 	if r.err != nil {
-		return nil
+		return
 	}
 
-	if line.Code != code {
-		line, r.err = nil, NewParseError(fmt.Sprintf("Invalid group code expected %d", code))
+	buf, err := r.reader.ReadBytes('\n')
+
+	if err != nil {
+		r.err = NewParseError("[READER] invalid file")
+		return
 	}
 
-	return line
+	offset := 1
+	Line++
+
+	// \r\n
+	if len(buf) > 1 && buf[len(buf)-2] == 13 {
+		offset++
+	}
+
+	r.dxfLine.Line = string(buf[:len(buf)-offset])
 }
 
-func (r *Reader) AssertNextLine(line string) error {
+// ConsumeNext returns the current value and reads the next one already
+func (r *Reader) consumeNext() string {
+	if r.err != nil {
+		return r.err.Error()
+	}
+	defer r.consume()
+
+	value := r.dxfLine.Line
+	return value
+}
+
+func (r *Reader) consumeUntil(label string) {
+	for r.consumeNext() != label {
+	}
+}
+
+func (r *Reader) assertNextCode(expected uint16) error {
 	if r.err != nil {
 		return r.err
 	}
 
-	check := r.ConsumeDxfLine()
-	if r.err != nil {
-		return r.err
-	}
-
-	if check.Line != line {
-		fmt.Println("[", Line, "] expected ", line, " got ", *check)
-		r.err = NewParseError(fmt.Sprintf("[%d] expected %s", Line, line))
+	if r.dxfLine.Code != expected {
+		r.dxfLine.Code = 1001
+		r.err = NewParseError(fmt.Sprintf("Invalid group code expected %d", expected))
 	}
 
 	return r.err
 }
 
-func (r *Reader) ConsumeNumber(code uint16, radix int, description string, n *int64) {
+func (r *Reader) assertNextLine(expected string) error {
 	if r.err != nil {
-		return
+		return r.err
 	}
 
-	line := r.AssertNext(code)
+	if r.dxfLine.Line != expected {
+		r.err = NewParseError(fmt.Sprintf("[%d] expected %s", Line, expected))
+	}
 
-	if r.err != nil {
-		fmt.Println("[TO_NUMBER(", Line, ")] failed: with invalid group code expected ", code, " got ", line)
-		r.err = NewParseError(description)
+	r.consume()
+	return r.err
+}
+
+func (r *Reader) consumeNumber(code uint16, radix int, description string, n *int64) {
+	if r.assertNextCode(code) != nil {
 		return
 	}
 
 	if n != nil {
-		*n, r.err = strconv.ParseInt(strings.TrimSpace(line.Line), radix, 64)
+		*n, r.err = strconv.ParseInt(strings.TrimSpace(r.dxfLine.Line), radix, 64)
+
 		if r.err != nil {
-			r.err = NewParseError(fmt.Sprintf("%d", Line))
+			r.err = NewParseError(fmt.Sprintf("%d %s because %s", Line, r.err.Error(), description))
 		}
 	}
+
+	r.consume()
 }
 
-func (r *Reader) ConsumeNumberIf(code uint16, radix int, description string, n *int64) bool {
-	if r.err != nil {
+func (r *Reader) consumeNumberIf(code uint16, radix int, description string, n *int64) bool {
+	if r.err != nil || r.dxfLine.Code != code {
 		return false
 	}
 
-	check, err := r.PeekCode()
-
-	if r.err = err; r.err != nil || check != code {
-		return false
-	}
-
-	r.ConsumeNumber(code, radix, description, n)
+	r.consumeNumber(code, radix, description, n)
 	return r.err == nil
 }
 
-func (r *Reader) ConsumeFloat(code uint16, description string, f *float64) {
-	if r.err != nil {
-		return
-	}
-
-	line := r.AssertNext(code)
-	if r.err != nil {
-		fmt.Println("[TO_FLOAT(", Line, ")] failed: with invalid group code expected ", code, " got ", line)
+func (r *Reader) consumeFloat(code uint16, description string, f *float64) {
+	if r.assertNextCode(code) != nil {
+		fmt.Println("[TO_FLOAT(", Line, ")] failed: with invalid group code expected ", code, " got ", r.dxfLine.Code)
 		return
 	}
 
 	if f != nil {
-		*f, r.err = strconv.ParseFloat(line.Line, 64)
+		*f, r.err = strconv.ParseFloat(r.dxfLine.Line, 64)
+
+		if r.err != nil {
+			fmt.Println("[READER] ConsumeFloat expected number got ", r.dxfLine.Line)
+			r.err = NewParseError(description)
+		}
 	}
 
-	if r.err != nil {
-		r.err = NewParseError(description)
-		fmt.Println("[READER] ConsumeFloat expected number got ", line.Line)
-	}
+	r.consume()
 }
 
-func (r *Reader) ConsumeFloatIf(code uint16, description string, f *float64) bool {
-	if r.err != nil {
+func (r *Reader) consumeFloatIf(code uint16, description string, f *float64) bool {
+	if r.dxfLine.Code != code {
 		return false
 	}
 
-	check, err := r.PeekCode()
-
-	if r.err = err; r.err != nil || check != code {
-		return false
-	}
-
-	r.ConsumeFloat(code, description, f)
-	return true
+	r.consumeFloat(code, description, f)
+	return r.err == nil
 }
 
-func (r *Reader) ConsumeStr(s *string) {
-	if r.err != nil {
-		return
-	}
-
-	line := r.ConsumeDxfLine()
-
+func (r *Reader) consumeStr(s *string) {
 	if r.err != nil {
 		return
 	}
 
 	if s != nil {
-		*s = line.Line
+		*s = r.dxfLine.Line
 	}
+
+	r.consume()
 }
 
-func (r *Reader) ConsumeStrIf(code uint16, s *string) bool {
-	if r.err != nil {
+func (r *Reader) consumeStrIf(code uint16, s *string) bool {
+	if r.dxfLine.Code != code {
 		return false
 	}
 
-	check, err := r.PeekCode()
-
-	if r.err = err; r.err != nil || check != code {
-		return false
-	}
-
-	r.ConsumeStr(s)
-	return r.Err() == nil
+	r.consumeStr(s)
+	return r.err == nil
 }
 
-func (r *Reader) ConsumeCoordinates(coords []float64) {
-	for i := 0; i < len(coords) && r.ScanDxfLine(); i++ {
+func (r *Reader) consumeCoordinates(coords []float64) {
+	for i := 0; i < len(coords); i++ {
 		if r.err != nil {
 			return
 		}
 
-		cord := r.DxfLine()
-		index := cord.Code%100/10 - 1
+		index := r.dxfLine.Code%100/10 - 1
 
 		if index >= uint16(len(coords)) {
-			msg := fmt.Sprintf("Coordinates out of bounds: len is %d index was %d", len(coords), index)
-			r.err = NewParseError(msg)
+			r.err = NewParseError(fmt.Sprintf("cords out of bounds: len is %d index was %d", len(coords), index))
 			return
 		}
 
-		coords[index], r.err = strconv.ParseFloat(cord.Line, 64)
+		coords[index], r.err = strconv.ParseFloat(r.dxfLine.Line, 64)
+		r.consumeNext()
 	}
 }
 
-func (r *Reader) ConsumeCoordinatesIf(code uint16, coords []float64) {
-	if r.err != nil {
+func (r *Reader) consumeCoordinatesIf(code uint16, coords []float64) {
+	if r.dxfLine.Code != code {
 		return
 	}
 
-	check, err := r.PeekCode()
-
-	if r.err = err; r.err != nil || check != code {
-		return
-	}
-
-	r.ConsumeCoordinates(coords)
-}
-
-func (r *Reader) Err() error {
-	return r.err
-}
-
-func (r *Reader) SkipToLabel(label string) {
-	for r.ScanDxfLine() && r.DxfLine().Line != label {
-	}
-}
-
-func (r *Reader) PeekCode() (uint16, error) {
-	if r.err != nil {
-		return 0, r.err
-	}
-
-	line, err := r.reader.Peek(DxfCodeLineSizeInBytes)
-
-	if r.err = err; r.err != nil {
-		fmt.Println("[READER] unexpected eof ", err)
-		return 0, r.err
-	}
-
-	code, err := strconv.ParseUint(strings.TrimSpace(string(line)), DecRadix, 16)
-
-	if r.err = err; r.err != nil {
-		fmt.Println("[READER] unable to convert code to int ", r.err)
-		return 0, r.err
-	}
-
-	return uint16(code), nil
-}
-
-// TODO: this is bad change this
-// not sure but to be refactored
-// update: made this even worse :)
-func (r *Reader) PeekLine() (string, error) {
-	if r.err != nil {
-		return "", r.err
-	}
-
-	var line []byte
-
-	if r.err != nil {
-		return "", r.err
-	}
-
-	src, dst := -1, -1
-	for i := 1; src == -1 || dst == -1; i++ {
-		line, r.err = r.reader.Peek(i)
-
-		if r.err != nil {
-			return "", r.err
-		}
-
-		if line[i-1] == '\n' {
-			if src == -1 {
-				src = i
-			} else {
-				dst = i
-			}
-		}
-	}
-
-	return string(line[src : dst-2]), r.err
+	r.consumeCoordinates(coords)
 }
 
 func (r *Reader) consumeCode() (uint16, error) {
@@ -290,47 +210,14 @@ func (r *Reader) consumeCode() (uint16, error) {
 	Line++
 
 	if r.err = err; err != nil {
-		fmt.Println("[READER(", Line, ")] Corrupt Dxf file: ", r.err)
 		return 0, r.err
 	}
 
 	code, err := strconv.ParseUint(strings.TrimSpace(string(line)), DecRadix, 16)
 
 	if r.err = err; r.err != nil {
-		fmt.Println("[READER(", Line, ")] Corrupt Dxf file: expected code got: ", r.err)
 		return 0, r.err
 	}
 
 	return uint16(code), nil
-}
-
-func (r *Reader) ConsumeDxfLine() *DxfLine {
-	if r.err != nil {
-		return nil
-	}
-
-	code, err := r.consumeCode()
-	if r.err = err; r.err != nil {
-		return nil
-	}
-
-	line, err := r.reader.ReadBytes('\n')
-
-	if r.err = err; r.err != nil {
-		fmt.Println("[READER] Unexpected eof: ", err)
-		return nil
-	}
-
-	offset := 1
-	Line++
-
-	// \r\n
-	if len(line) > 1 && line[len(line)-2] == 13 {
-		offset++
-	}
-
-	return &DxfLine{
-		Code: code,
-		Line: string(line[:len(line)-offset]),
-	}
 }
