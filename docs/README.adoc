@@ -1,13 +1,40 @@
 = dxf
 aichingert
+:icons: font
+:experimental:
+ifdef::env-github[]
+:tip-caption: :bulb:
+:note-caption: :information_source:
+:important-caption: :heavy_exclamation_mark:
+:caution-caption: :fire:
+:warning-caption: :warning:
+endif::[]
 :toc:
 :toclevels: 3
 
-early stages of a dfx parser
+== abstract
+
+this is a pretty bare bone dxf parser and will only give you the parsed dxf file as struct
+and from there on you are on your own. So basic dxf knowledge is needed to use it. A better
+documentation for dxf can be found at https://ezdxf.mozman.at/docs/dxfentities/index.html[mozman's docs^].
+
+== examples
+
+this parser has zero dependencies and will continue to have none and is also pretty easy to integrate
+in a website via webassembly there is also an example in the examples folder showing how to use the wasm package.
+
+.wasm example rendering via canvas
+image::images/wasm-example.png[]
+
+github.com/aichingert/dxf/tree/main/examples/wasm[wasm example^]
 
 == support
 
-* [ ] header
-* [ ] tables
-* [+] blocks
+* [x] header
+* [~] tables
+* [x] blocks
 * [ ] entities
+
+== contributing
+
+if you find a bug or think that something is missing that you need, just open a issue or pull request.
