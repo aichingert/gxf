@@ -5,17 +5,17 @@ import (
 	"strings"
 )
 
-func ParseHeader(r *Reader, dxf *drawing.Dxf) {
+func ParseHeader(r Reader, dxf *drawing.Dxf) {
 	for {
 		line := r.consumeNext()
 
 		if strings.HasSuffix(line, "MODE") {
-			dxf.Header.Modes[r.dxfLine.Line] = r.consumeNext()
+			dxf.Header.Modes[r.line()] = r.consumeNext()
 			continue
 		}
 
 		if line == "$CUSTOMPROPERTYTAG" {
-			dxf.Header.CustomProperties[r.dxfLine.Line] = r.consumeNext()
+			dxf.Header.CustomProperties[r.line()] = r.consumeNext()
 			continue
 		}
 
@@ -33,11 +33,11 @@ func ParseHeader(r *Reader, dxf *drawing.Dxf) {
 		case "ENDSEC":
 			return
 		default:
-			if r.err != nil {
+			if r.Err() != nil {
 				return
 			}
 
-			dxf.Header.Variables[r.dxfLine.Line] = r.consumeNext()
+			dxf.Header.Variables[r.line()] = r.consumeNext()
 		}
 	}
 }

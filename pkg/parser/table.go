@@ -7,7 +7,7 @@ import (
 	"github.com/aichingert/dxf/pkg/table"
 )
 
-func ParseTables(r *Reader, dxf *drawing.Dxf) {
+func ParseTables(r Reader, dxf *drawing.Dxf) {
 	for {
 		switch r.consumeNext() {
 		case "TABLE":
@@ -15,8 +15,8 @@ func ParseTables(r *Reader, dxf *drawing.Dxf) {
 		case "ENDSEC":
 			return
 		default:
-			if r.err == nil {
-				r.err = NewParseError(fmt.Sprintf("Table(%d): %s", Line, r.dxfLine.Line))
+			if r.Err() == nil {
+				r.setErr(NewParseError(fmt.Sprintf("Table(%d): %s", Line, r.line())))
 			}
 
 			return
@@ -24,7 +24,7 @@ func ParseTables(r *Reader, dxf *drawing.Dxf) {
 	}
 }
 
-func parseTable(r *Reader, dxf *drawing.Dxf) {
+func parseTable(r Reader, dxf *drawing.Dxf) {
 	for {
 		switch r.consumeNext() {
 		case "LAYER":
@@ -32,7 +32,7 @@ func parseTable(r *Reader, dxf *drawing.Dxf) {
 		case "ENDTAB":
 			return
 		default:
-			if r.err != nil {
+			if r.Err() != nil {
 				return
 			}
 
@@ -40,14 +40,14 @@ func parseTable(r *Reader, dxf *drawing.Dxf) {
 			return
 		}
 
-		for r.dxfLine.Code != 0 {
+		for r.code() != 0 {
 			r.consume()
 		}
 	}
 }
 
 // TODO: maybe put this in acdb as well
-func parseLayerTable(r *Reader, dxf *drawing.Dxf) {
+func parseLayerTable(r Reader, dxf *drawing.Dxf) {
 	r.consumeNumber(5, HexRadix, "handle", nil)
 
 	// TODO: set hard owner/handle to owner dictionary
@@ -73,7 +73,7 @@ func parseLayerTable(r *Reader, dxf *drawing.Dxf) {
 	}
 }
 
-func parseAcDbLayerTableRecord(r *Reader, dxf *drawing.Dxf) {
+func parseAcDbLayerTableRecord(r Reader, dxf *drawing.Dxf) {
 	if r.assertNextLine("AcDbLayerTableRecord") != nil {
 		return
 	}

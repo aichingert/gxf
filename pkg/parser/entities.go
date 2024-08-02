@@ -7,7 +7,7 @@ import (
 	"github.com/aichingert/dxf/pkg/entity"
 )
 
-func ParseEntities(r *Reader, entities entity.Entities) {
+func ParseEntities(r Reader, entities entity.Entities) {
 	for {
 		switch r.consumeNext() {
 		case "LINE":
@@ -49,17 +49,17 @@ func ParseEntities(r *Reader, entities entity.Entities) {
 		case "ENDBLK":
 			return
 		default:
-			r.err = NewParseError(fmt.Sprintf("unknown entity: %s", r.dxfLine.Line))
+			r.setErr(NewParseError(fmt.Sprintf("unknown entity: %s", r.line())))
 			return
 		}
 
-		for r.dxfLine.Code != 0 {
+		for r.code() != 0 {
 			r.consume()
 		}
 	}
 }
 
-func ParseLine(r *Reader, entities entity.Entities) {
+func ParseLine(r Reader, entities entity.Entities) {
 	line := entity.NewLine()
 
 	ParseAcDbEntity(r, line.Entity)
@@ -69,13 +69,13 @@ func ParseLine(r *Reader, entities entity.Entities) {
 }
 
 // TODO: create polyline and lwpolyline
-func ParsePolyline(r *Reader, entities entity.Entities) {
+func ParsePolyline(r Reader, entities entity.Entities) {
 	polyline := entity.NewPolyline()
 
 	ParseAcDbEntity(r, polyline.Entity)
 	ParseAcDb2dPolyline(r, polyline)
 
-	for r.dxfLine.Code != 0 {
+	for r.code() != 0 {
 		r.consumeNext()
 	}
 
@@ -88,10 +88,10 @@ func ParsePolyline(r *Reader, entities entity.Entities) {
 			ParseAcDbEntity(r, polyline.Entity)
 			return
 		default:
-			log.Fatal("[", Line, "] Invalid entity: ", r.dxfLine.Line)
+			log.Fatal("[", Line, "] Invalid entity: ", r.line())
 		}
 
-		for r.dxfLine.Code != 0 {
+		for r.code() != 0 {
 			r.consume()
 		}
 	}
@@ -99,7 +99,7 @@ func ParsePolyline(r *Reader, entities entity.Entities) {
 	//entities.AppendPolyline(polyline)
 }
 
-func ParseLwPolyline(r *Reader, entities entity.Entities) {
+func ParseLwPolyline(r Reader, entities entity.Entities) {
 	polyline := entity.NewPolyline()
 
 	ParseAcDbEntity(r, polyline.Entity)
@@ -108,7 +108,7 @@ func ParseLwPolyline(r *Reader, entities entity.Entities) {
 	entities.AppendPolyline(polyline)
 }
 
-func ParseArc(r *Reader, entities entity.Entities) {
+func ParseArc(r Reader, entities entity.Entities) {
 	arc := entity.NewArc()
 
 	ParseAcDbEntity(r, arc.Entity)
@@ -118,7 +118,7 @@ func ParseArc(r *Reader, entities entity.Entities) {
 	entities.AppendArc(arc)
 }
 
-func ParseCircle(r *Reader, entities entity.Entities) {
+func ParseCircle(r Reader, entities entity.Entities) {
 	circle := entity.NewCircle()
 
 	ParseAcDbEntity(r, circle.Entity)
@@ -127,7 +127,7 @@ func ParseCircle(r *Reader, entities entity.Entities) {
 	entities.AppendCircle(circle)
 }
 
-func ParseText(r *Reader, entities entity.Entities) {
+func ParseText(r Reader, entities entity.Entities) {
 	text := entity.NewText()
 
 	ParseAcDbEntity(r, text.Entity)
@@ -136,7 +136,7 @@ func ParseText(r *Reader, entities entity.Entities) {
 	entities.AppendText(text)
 }
 
-func ParseMText(r *Reader, entities entity.Entities) {
+func ParseMText(r Reader, entities entity.Entities) {
 	mText := entity.NewMText()
 
 	ParseAcDbEntity(r, mText.Entity)
@@ -145,7 +145,7 @@ func ParseMText(r *Reader, entities entity.Entities) {
 	entities.AppendMText(mText)
 }
 
-func ParseHatch(r *Reader, entities entity.Entities) {
+func ParseHatch(r Reader, entities entity.Entities) {
 	hatch := entity.NewHatch()
 
 	ParseAcDbEntity(r, hatch.Entity)
@@ -154,7 +154,7 @@ func ParseHatch(r *Reader, entities entity.Entities) {
 	entities.AppendHatch(hatch)
 }
 
-func ParseEllipse(r *Reader, entities entity.Entities) {
+func ParseEllipse(r Reader, entities entity.Entities) {
 	ellipse := entity.NewEllipse()
 
 	ParseAcDbEntity(r, ellipse.Entity)
@@ -164,7 +164,7 @@ func ParseEllipse(r *Reader, entities entity.Entities) {
 }
 
 // ParseSpline create entity spline
-func ParseSpline(r *Reader, _ entity.Entities) {
+func ParseSpline(r Reader, _ entity.Entities) {
 	spline := entity.NewMText()
 
 	ParseAcDbEntity(r, spline.Entity)
@@ -172,7 +172,7 @@ func ParseSpline(r *Reader, _ entity.Entities) {
 }
 
 // ParseSolid create entity solid
-func ParseSolid(r *Reader, _ entity.Entities) {
+func ParseSolid(r Reader, _ entity.Entities) {
 	solid := entity.NewMText()
 
 	ParseAcDbEntity(r, solid.Entity)
@@ -180,7 +180,7 @@ func ParseSolid(r *Reader, _ entity.Entities) {
 }
 
 // ParseVertex create entity vertex
-func ParseVertex(r *Reader, _ entity.Entities) {
+func ParseVertex(r Reader, _ entity.Entities) {
 	vertex := entity.NewMText()
 
 	ParseAcDbEntity(r, vertex.Entity)
@@ -188,20 +188,20 @@ func ParseVertex(r *Reader, _ entity.Entities) {
 }
 
 // ParsePoint create entity point
-func ParsePoint(r *Reader, _ entity.Entities) {
+func ParsePoint(r Reader, _ entity.Entities) {
 	point := entity.NewMText()
 
 	ParseAcDbEntity(r, point.Entity)
 	ParseAcDbPoint(r, point)
 }
 
-func ParseInsert(r *Reader, entities entity.Entities) {
+func ParseInsert(r Reader, entities entity.Entities) {
 	insert := entity.NewInsert()
 
 	ParseAcDbEntity(r, insert.Entity)
 	ParseAcDbBlockReference(r, insert)
 
-	for r.dxfLine.Code != 0 {
+	for r.code() != 0 {
 		r.consumeNext()
 	}
 
@@ -215,7 +215,7 @@ Att:
 			ParseAcDbEntity(r, insert.Entity)
 			break Att
 		default:
-			log.Fatal("[INSERT(", Line, ")] invalid subclass marker ", r.dxfLine.Line)
+			log.Fatal("[INSERT(", Line, ")] invalid subclass marker ", r.line())
 		}
 	}
 
@@ -223,7 +223,7 @@ Att:
 }
 
 // ParseDimension create entity DIMENSION
-func ParseDimension(r *Reader, _ entity.Entities) {
+func ParseDimension(r Reader, _ entity.Entities) {
 	throwAway := entity.NewAttdef()
 
 	ParseAcDbEntity(r, throwAway.Entity)
@@ -234,7 +234,7 @@ func ParseDimension(r *Reader, _ entity.Entities) {
 }
 
 // ParseRegion create entity region
-func ParseRegion(r *Reader, _ entity.Entities) {
+func ParseRegion(r Reader, _ entity.Entities) {
 	throwAway := entity.NewMText()
 
 	ParseAcDbEntity(r, throwAway.Entity)
@@ -248,14 +248,14 @@ func ParseRegion(r *Reader, _ entity.Entities) {
 }
 
 // ParseViewport create entity viewport
-func ParseViewport(r *Reader, _ entity.Entities) {
+func ParseViewport(r Reader, _ entity.Entities) {
 	throwAway := entity.NewMText()
 
 	ParseAcDbEntity(r, throwAway.Entity)
 	ParseAcDbViewport(r, throwAway)
 }
 
-func ParseAttrib(r *Reader, appender entity.AttribAppender) {
+func ParseAttrib(r Reader, appender entity.AttribAppender) {
 	attrib := entity.NewAttrib()
 
 	ParseAcDbEntity(r, attrib.Entity)
@@ -265,7 +265,7 @@ func ParseAttrib(r *Reader, appender entity.AttribAppender) {
 	appender.AppendAttrib(attrib)
 }
 
-func ParseAttdef(r *Reader, _ entity.Entities) {
+func ParseAttdef(r Reader, _ entity.Entities) {
 	attdef := entity.NewAttdef()
 
 	ParseAcDbEntity(r, attdef.Entity)

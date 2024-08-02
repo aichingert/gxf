@@ -7,7 +7,7 @@ import (
 	_ "github.com/aichingert/dxf/pkg/entity"
 )
 
-func ParseBlocks(r *Reader, dxf *drawing.Dxf) {
+func ParseBlocks(r Reader, dxf *drawing.Dxf) {
 	for {
 		switch r.consumeNext() {
 		case "BLOCK":
@@ -15,13 +15,13 @@ func ParseBlocks(r *Reader, dxf *drawing.Dxf) {
 		case "ENDSEC":
 			return
 		default:
-			r.err = NewParseError(fmt.Sprintf("Block(%d): %s", Line, r.dxfLine.Line))
+			r.setErr(NewParseError(fmt.Sprintf("Block(%d): %s", Line, r.line())))
 			return
 		}
 	}
 }
 
-func ParseBlock(r *Reader, dxf *drawing.Dxf) {
+func ParseBlock(r Reader, dxf *drawing.Dxf) {
 	block := blocks.NewBlock()
 
 	ParseAcDbEntity(r, block.Entity)
@@ -34,7 +34,7 @@ func ParseBlock(r *Reader, dxf *drawing.Dxf) {
 }
 
 // TODO: maybe pass block to function
-func ParseBlockEnd(r *Reader, _ *drawing.Dxf) {
+func ParseBlockEnd(r Reader, _ *drawing.Dxf) {
 	endblk := blocks.NewBlock()
 
 	ParseAcDbEntity(r, endblk.Entity)

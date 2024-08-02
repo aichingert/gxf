@@ -13,7 +13,7 @@ var (
 	coords3D = [3]float64{0, 0, 0}
 )
 
-func ParseAcDbEntity(r *Reader, entity entity.Entity) {
+func ParseAcDbEntity(r Reader, entity entity.Entity) {
 	r.consumeNumber(5, HexRadix, "handle", entity.GetHandle())
 
 	// TODO: set hard owner/handle to owner dictionary
@@ -51,7 +51,7 @@ func ParseAcDbEntity(r *Reader, entity entity.Entity) {
 	r.consumeNumberIf(370, DecRadix, "not documented", nil)
 }
 
-func ParseAcDbLine(r *Reader, line *entity.Line) {
+func ParseAcDbLine(r Reader, line *entity.Line) {
 	if r.assertNextLine("AcDbLine") != nil {
 		return
 	}
@@ -61,7 +61,7 @@ func ParseAcDbLine(r *Reader, line *entity.Line) {
 	r.consumeCoordinates(line.Dst[:])
 }
 
-func ParseAcDbPolyline(r *Reader, polyline *entity.Polyline) {
+func ParseAcDbPolyline(r Reader, polyline *entity.Polyline) {
 	if r.assertNextLine("AcDbPolyline") != nil {
 		return
 	}
@@ -82,7 +82,7 @@ func ParseAcDbPolyline(r *Reader, polyline *entity.Polyline) {
 		r.consumeFloatIf(42, "expected bulge", &bulge)
 		r.consumeNumberIf(91, DecRadix, "vertex identifier", nil)
 
-		if r.err != nil {
+		if r.Err() != nil {
 			return
 		}
 
@@ -90,7 +90,7 @@ func ParseAcDbPolyline(r *Reader, polyline *entity.Polyline) {
 	}
 }
 
-func ParseAcDb2dPolyline(r *Reader, _ *entity.Polyline) {
+func ParseAcDb2dPolyline(r Reader, _ *entity.Polyline) {
 	if r.assertNextLine("AcDb2dPolyline") != nil {
 		return
 	}
@@ -111,7 +111,7 @@ func ParseAcDb2dPolyline(r *Reader, _ *entity.Polyline) {
 	r.consumeCoordinatesIf(210, coords3D[:])
 }
 
-func ParseAcDbCircle(r *Reader, circle *entity.Circle) {
+func ParseAcDbCircle(r Reader, circle *entity.Circle) {
 	if r.assertNextLine("AcDbCircle") != nil {
 		return
 	}
@@ -121,7 +121,7 @@ func ParseAcDbCircle(r *Reader, circle *entity.Circle) {
 	r.consumeFloat(40, "expected radius", &circle.Radius)
 }
 
-func ParseAcDbArc(r *Reader, arc *entity.Arc) {
+func ParseAcDbArc(r Reader, arc *entity.Arc) {
 	if r.assertNextLine("AcDbArc") != nil {
 		return
 	}
@@ -130,7 +130,7 @@ func ParseAcDbArc(r *Reader, arc *entity.Arc) {
 	r.consumeFloat(51, "expected endAngle", &arc.EndAngle)
 }
 
-func ParseAcDbText(r *Reader, text *entity.Text) {
+func ParseAcDbText(r Reader, text *entity.Text) {
 	if r.assertNextLine("AcDbText") != nil {
 		return
 	}
@@ -153,7 +153,7 @@ func ParseAcDbText(r *Reader, text *entity.Text) {
 	r.consumeCoordinatesIf(11, text.Vector[:])
 	r.consumeCoordinatesIf(210, text.Vector[:])
 
-	if r.dxfLine.Line == "AcDbText" {
+	if r.line() == "AcDbText" {
 		r.consumeNext()
 	}
 
@@ -163,7 +163,7 @@ func ParseAcDbText(r *Reader, text *entity.Text) {
 	r.consumeNumberIf(73, DecRadix, "vertical text justification", &text.VJustification)
 }
 
-func ParseAcDbMText(r *Reader, mText *entity.MText) {
+func ParseAcDbMText(r Reader, mText *entity.MText) {
 	if r.assertNextLine("AcDbMText") != nil {
 		return
 	}
@@ -178,10 +178,10 @@ func ParseAcDbMText(r *Reader, mText *entity.MText) {
 	r.consumeNumber(71, DecRadix, "attachment point", &mText.Layout)
 	r.consumeNumber(72, DecRadix, "direction (ex: left to right)", &mText.Direction)
 
-	for r.dxfLine.Code == 1 || r.dxfLine.Code == 3 {
+	for r.code() == 1 || r.code() == 3 {
 		line := r.consumeNext()
 
-		if r.err != nil {
+		if r.Err() != nil {
 			return
 		}
 
@@ -196,7 +196,7 @@ func ParseAcDbMText(r *Reader, mText *entity.MText) {
 	HelperParseEmbeddedObject(r)
 }
 
-func HelperParseEmbeddedObject(r *Reader) {
+func HelperParseEmbeddedObject(r Reader) {
 	// Embedded Object
 	if r.consumeStrIf(101, nil) {
 		r.consumeNumberIf(70, DecRadix, "not documented", nil)
@@ -224,7 +224,7 @@ func HelperParseEmbeddedObject(r *Reader) {
 	}
 }
 
-func ParseAcDbHatch(r *Reader, hatch *entity.Hatch) {
+func ParseAcDbHatch(r Reader, hatch *entity.Hatch) {
 	if r.assertNextLine("AcDbHatch") != nil {
 		return
 	}
@@ -298,7 +298,7 @@ func ParseAcDbHatch(r *Reader, hatch *entity.Hatch) {
 	r.consumeStrIf(470, nil) // string default = LINEAR
 }
 
-func ParseBoundaryPath(r *Reader) *entity.BoundaryPath {
+func ParseBoundaryPath(r Reader) *entity.BoundaryPath {
 	path := &entity.BoundaryPath{}
 
 	// [92] Boundary path type flag (bit coded):
@@ -361,7 +361,7 @@ func ParseBoundaryPath(r *Reader) *entity.BoundaryPath {
 			case 4: // Spine
 				log.Fatal("[AcDbHatch(", Line, ")] TODO: implement boundary path spline")
 			default:
-				r.err = NewParseError("invalid edge type data")
+				r.setErr(NewParseError("invalid edge type data"))
 				return path
 			}
 		}
@@ -376,7 +376,7 @@ func ParseBoundaryPath(r *Reader) *entity.BoundaryPath {
 	return path
 }
 
-func ParseAcDbEllipse(r *Reader, ellipse *entity.Ellipse) {
+func ParseAcDbEllipse(r Reader, ellipse *entity.Ellipse) {
 	if r.assertNextLine("AcDbEllipse") != nil {
 		return
 	}
@@ -391,7 +391,7 @@ func ParseAcDbEllipse(r *Reader, ellipse *entity.Ellipse) {
 	r.consumeFloat(42, "end parameter", &ellipse.End)
 }
 
-func ParseAcDbSpline(r *Reader, _ *entity.MText) {
+func ParseAcDbSpline(r Reader, _ *entity.MText) {
 	if r.assertNextLine("AcDbSpline") != nil {
 		return
 	}
@@ -420,7 +420,7 @@ func ParseAcDbSpline(r *Reader, _ *entity.MText) {
 }
 
 // ParseAcDbTrace implement AcDbPoint
-func ParseAcDbTrace(r *Reader, _ *entity.MText) {
+func ParseAcDbTrace(r Reader, _ *entity.MText) {
 	if r.assertNextLine("AcDbTrace") != nil {
 		return
 	}
@@ -436,7 +436,7 @@ func ParseAcDbTrace(r *Reader, _ *entity.MText) {
 }
 
 // ParseAcDbVertex implement entity entity.Vertex
-func ParseAcDbVertex(r *Reader, _ *entity.MText) {
+func ParseAcDbVertex(r Reader, _ *entity.MText) {
 	if r.assertNextLine("AcDbVertex") != nil {
 		return
 	}
@@ -461,7 +461,7 @@ func ParseAcDbVertex(r *Reader, _ *entity.MText) {
 }
 
 // ParseAcDbPoint implement entity entity.Point
-func ParseAcDbPoint(r *Reader, _ *entity.MText) {
+func ParseAcDbPoint(r Reader, _ *entity.MText) {
 	if r.assertNextLine("AcDbPoint") != nil {
 		return
 	}
@@ -475,10 +475,10 @@ func ParseAcDbPoint(r *Reader, _ *entity.MText) {
 	r.consumeFloatIf(50, "angle of the x axis", nil)
 }
 
-func ParseAcDbBlockReference(r *Reader, insert *entity.Insert) {
+func ParseAcDbBlockReference(r Reader, insert *entity.Insert) {
 	line := ""
 	r.consumeStr(&line)
-	if r.err != nil || !(line == "AcDbBlockReference" || line == "AcDbMInsertBlock") {
+	if r.Err() != nil || !(line == "AcDbBlockReference" || line == "AcDbMInsertBlock") {
 		return
 	}
 
@@ -502,7 +502,7 @@ func ParseAcDbBlockReference(r *Reader, insert *entity.Insert) {
 	r.consumeCoordinatesIf(210, coords3D[:])
 }
 
-func ParseAcDbBlockBegin(r *Reader, block *blocks.Block) {
+func ParseAcDbBlockBegin(r Reader, block *blocks.Block) {
 	if r.assertNextLine("AcDbBlockBegin") != nil {
 		return
 	}
@@ -515,7 +515,7 @@ func ParseAcDbBlockBegin(r *Reader, block *blocks.Block) {
 	r.consumeStr(&block.XRefPath)  // [1] Xref path name
 }
 
-func ParseAcDbAttribute(r *Reader, attrib *entity.Attrib) {
+func ParseAcDbAttribute(r Reader, attrib *entity.Attrib) {
 	if r.assertNextLine("AcDbAttribute") != nil {
 		return
 	}
@@ -537,12 +537,12 @@ func ParseAcDbAttribute(r *Reader, attrib *entity.Attrib) {
 	r.consumeCoordinatesIf(210, attrib.Text.Vector[:])
 
 	// TODO: parse XDATA
-	for r.dxfLine.Code != 0 {
+	for r.code() != 0 {
 		r.consumeNext()
 	}
 }
 
-func ParseAcDbAttributeDefinition(r *Reader, attdef *entity.Attdef) {
+func ParseAcDbAttributeDefinition(r Reader, attdef *entity.Attdef) {
 	if r.assertNextLine("AcDbAttributeDefinition") != nil {
 		return
 	}
@@ -562,7 +562,7 @@ func ParseAcDbAttributeDefinition(r *Reader, attdef *entity.Attdef) {
 	HelperParseEmbeddedObject(r)
 }
 
-func ParseAcDbDimension(r *Reader, _ *entity.Attdef) {
+func ParseAcDbDimension(r Reader, _ *entity.Attdef) {
 	if r.assertNextLine("AcDbDimension") != nil {
 		return
 	}
@@ -619,7 +619,7 @@ func ParseAcDbDimension(r *Reader, _ *entity.Attdef) {
 	}
 }
 
-func ParseAcDbViewport(r *Reader, _ *entity.MText) {
+func ParseAcDbViewport(r Reader, _ *entity.MText) {
 	if r.assertNextLine("AcDbViewport") != nil {
 		return
 	}
@@ -649,7 +649,7 @@ func ParseAcDbViewport(r *Reader, _ *entity.MText) {
 
 	r.consumeFloat(72, "circle zoom percent", nil)
 
-	for r.dxfLine.Code == 331 {
+	for r.code() == 331 {
 		//r.consumeNumber(331, DecRadix, "frozen layer object Id/handle", nil)
 		r.consumeNext()
 	}

@@ -5,6 +5,8 @@ import (
 	"github.com/aichingert/dxf/pkg/drawing"
 	"github.com/aichingert/dxf/pkg/entity"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
+    "os"
 	"log"
 	"testing"
 
@@ -588,4 +590,16 @@ func TestCorrectBlockValuesParsed(t *testing.T) {
 	if len(expected) > 0 {
 		t.Fatal("Block did not parse all entities missing: ", expected)
 	}
+}
+
+func TestByteReader(t *testing.T) {
+    bytes, err := os.ReadFile("test.dxf")
+    require.Nil(t, err)
+
+    fileDxf, err := dxf.Open("test.dxf")
+    require.Nil(t, err)
+    byteDxf, err := dxf.Parse("test.dxf", bytes)
+    require.Nil(t, err)
+
+    assert.Equal(t, fileDxf, byteDxf)
 }
