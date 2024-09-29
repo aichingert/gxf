@@ -1,7 +1,10 @@
 package gxf
 
-import "github.com/aichingert/gxf/pkg/drawing"
+import (
+    "github.com/aichingert/gxf/pkg/drawing"
+    "github.com/aichingert/gxf/pkg/parser"
+)
 
 func Parse(buffer []byte) (*drawing.Gxf, error) {
-    return new(drawing.Gxf), nil
+    return parser.ParseBuffer(buffer)
 }
