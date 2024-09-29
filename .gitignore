@@ -8,6 +8,8 @@
 *.so
 *.dylib
 *.idea
+*.wasm
+*.js
 
 # Test binary, built with `go test -c`
 *.test

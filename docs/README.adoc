@@ -30,8 +30,9 @@ github.com/aichingert/dxf/tree/main/examples/wasm[wasm example^]
 
 == support
 
+[%interactive]
 * [x] header
-* [~] tables
+* [ ] tables
 * [x] blocks
 * [ ] entities
 
