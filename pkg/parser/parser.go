@@ -3,15 +3,16 @@ package parser
 import "github.com/aichingert/gxf/pkg/drawing"
 
 type reader interface {
-    consume()
+    consumeCode(code *uint16, err *error)
+    consumeLine(line *string, err *error)
 }
 
 type parser struct {
     pErr error
     impl reader
 
-    dxfCode uint16
-    dxfLine string
+    code uint16
+    line string
 }
 
 func ParseBuffer(buffer []byte) (*drawing.Gxf, error) {

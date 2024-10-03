@@ -7,21 +7,27 @@ func newParser(impl reader) *parser {
         pErr: nil,
         impl: impl,
 
-        dxfCode: 0,
-        dxfLine: "",
+        code: 0,
+        line: "",
     }
 }
 
 func (p *parser) parse(gxf *drawing.Gxf) (*drawing.Gxf, error) {
+L:
+    for true {
+        break L
+    }
+
     return gxf, nil
 }
 
-func (p *parser) code() uint16 {
-    return p.dxfCode
-}
+func (p *parser) consume() {
+    if p.err != nil {
+        return
+    }
 
-func (p *parser) line() string {
-    return p.dxfLine
+    p.impl.consumeCode(&p.code, &p.pErr)
+    p.impl.consumeLine(&p.line, &p.pErr)
 }
 
 func (p *parser) setErr(err error) {

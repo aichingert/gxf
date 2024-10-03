@@ -6,6 +6,20 @@ type byteReader struct {
     bytes []byte
 }
 
-func (b *byteReader) consume() {
-    fmt.Println("implements reader!")
+func (b *byteReader) consumeCode(code *uint16, err *error) {
+    if err != nil {
+        return
+    }
+
+    fmt.Println(code)
 }
+
+func (b *byteReader) consumeLine(line *string, err *error) {
+    if err != nil {
+        return
+    }
+
+    fmt.Println(line)
+}
+
+
