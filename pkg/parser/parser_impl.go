@@ -26,11 +26,11 @@ L:
         case "HEADER":
             p.consumeUntil("ENDSEC")
         case "TABLES":
-
+            p.consumeUntil("ENDSEC")
         case "BLOCKS":
-
+            p.consumeUntil("ENDSEC")
         case "ENTITIES":
-
+            // TODO:
         case "EOF":
             break L
         default:
