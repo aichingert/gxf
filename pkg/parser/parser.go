@@ -3,8 +3,8 @@ package parser
 import "github.com/aichingert/gxf/pkg/drawing"
 
 type reader interface {
-    consumeCode(code *uint16, err *error)
-    consumeLine(line *string, err *error)
+    consumeCode(code *uint16) error
+    consumeLine(line *string) error
 }
 
 type parser struct {
