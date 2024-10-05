@@ -8,7 +8,7 @@ type reader interface {
 }
 
 type parser struct {
-    pErr error
+    err error
     impl reader
 
     code uint16

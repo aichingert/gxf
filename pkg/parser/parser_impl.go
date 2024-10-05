@@ -1,6 +1,11 @@
 package parser
 
-import "github.com/aichingert/gxf/pkg/drawing"
+import (
+    "fmt"
+    "strconv"
+
+    "github.com/aichingert/gxf/pkg/drawing"
+)
 
 var Line uint64 = 0
 
@@ -10,7 +15,7 @@ const (
 
 func newParser(impl reader) *parser {
     return &parser{
-        pErr: nil,
+        err: nil,
         impl: impl,
 
         code: 0,
@@ -30,12 +35,12 @@ L:
         case "BLOCKS":
             p.consumeUntil("ENDSEC")
         case "ENTITIES":
-            // TODO:
+            p.parseEntities(gxf)
         case "EOF":
             break L
         default:
-            if p.pErr != nil {
-                return nil, p.pErr
+            if p.err != nil {
+                return nil, p.err
             }
 
             p.consumeUntil("ENDSEC")
@@ -46,22 +51,22 @@ L:
 }
 
 func (p *parser) consume() {
-    if p.pErr != nil {
+    if p.err != nil {
         return
     }
 
     if err := p.impl.consumeCode(&p.code); err != nil {
-        p.pErr = err
+        p.err = err
         return
     }
     if err := p.impl.consumeLine(&p.line); err != nil {
-        p.pErr = err
+        p.err = err
     }
 }
 
 func (p *parser) consumeNext() string {
-    if p.pErr != nil {
-        return p.pErr.Error()
+    if p.err != nil {
+        return p.err.Error()
     }
     defer p.consume()
 
@@ -73,10 +78,19 @@ func (p *parser) consumeUntil(label string) {
     for p.consumeNext() != label {}
 }
 
-func (p *parser) setErr(err error) {
-    p.pErr = err
-}
+func (p *parser) expectNextFloat(code uint16) float32 {
+    if p.err != nil {
+        return 0.0
+    }
+    defer p.consume()
 
-func (p *parser) err() error {
-    return p.pErr
+    if p.code != code {
+        p.err = NewParseError(fmt.Sprintf("Expect float invalid code: expected %d got %d", code, p.code))
+        return 0.0
+    }
+
+    f32, err := strconv.ParseFloat(p.line, 32)
+    p.err = err
+
+    return float32(f32)
 }

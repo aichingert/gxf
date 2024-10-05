@@ -1,5 +1,6 @@
 package drawing
 
 type Gxf struct {
-    Mesh Mesh
+    Lines Mesh
+    Polygons Mesh
 }
