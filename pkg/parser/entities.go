@@ -1,7 +1,6 @@
 package parser
 
 import (
-    "fmt"
     "strings"
 
     "github.com/aichingert/gxf/pkg/drawing"
@@ -60,6 +59,6 @@ func (p *parser) consumeLine(gxf *drawing.Gxf) {
     dstY := p.expectNextFloat(21)
     _ = p.expectNextFloat(31)
 
-    gxf.Lines.Vertices = append(gxf.Lines.Vertices, drawing.Vertex{ X: srcX, Y: srcY })
-    gxf.Lines.Vertices = append(gxf.Lines.Vertices, drawing.Vertex{ X: dstX, Y: dstY })
+    gxf.Lines.Vertices = append(gxf.Lines.Vertices, drawing.Vertex{ X: 1. / srcX, Y: 1. / srcY })
+    gxf.Lines.Vertices = append(gxf.Lines.Vertices, drawing.Vertex{ X: 1. / dstX, Y: 1. / dstY })
 }

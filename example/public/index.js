@@ -1,4 +1,24 @@
 async function init() {
+    const go = new window.Go();
+
+    WebAssembly.instantiateStreaming(
+        fetch("main.wasm"),
+        go.importObject
+    ).then(async (obj) => {
+        go.run(obj.instance);
+
+        const content = await fetch("test.dxf");
+        const buffer = await content.arrayBuffer();
+
+        const input = new Uint8Array(buffer);
+
+        const plan = window.parse(input);
+
+        setupWGPU(plan);
+    });
+}
+
+async function setupWGPU(plan) {
     const shaders_src = `
     struct WeirdTransform {
         position: vec2f,
@@ -12,12 +32,16 @@ async function init() {
     @binding(0) @group(0) var<uniform> transform: WeirdTransform;
 
     @vertex
-    fn vertex_main(@location(0) position: vec4f,
-                   @location(1) color: vec4f) -> VertexOut
+    fn vertex_main(@location(0) position: vec2f,
+                   @location(1) color: vec3f) -> VertexOut
     {
+
+        var x : f32 = transform.position.x * position.x;
+        var y : f32 = transform.position.y * position.y;
+
         var output : VertexOut;
-        output.position = position;
-        output.color = color;
+        output.position = vec4f(x, y, 1.0, 1.0);
+        output.color = vec4f(color, 1.0);
         return output;
     }
 
@@ -46,25 +70,17 @@ async function init() {
         alphaMode: "premultiplied",
     });
 
-    const vertices = new Float32Array([
-        0.0, 0.6, 0, 1, // pos
-        1, 0, 0, 1,     // col
+    const lines = plan.Lines.Vertices;
+    const vertices = new Float32Array(lines.length * 5);
+    let index = 0;
 
-        -0.5,-0.6, 0, 1, 
-        0, 1, 0, 1, 
-
-        -0.5,-0.6, 0, 1, 
-        0, 1, 0, 1, 
-
-        0.5,-0.6, 0, 1, 
-        0, 0, 1, 1,
-
-        0.5,-0.6, 0, 1, 
-        0, 0, 1, 1,
-
-        0.0, 0.6, 0, 1, 
-        1, 0, 0, 1,
-    ]);
+    for (line of lines) {
+        vertices[index++] = line.X;
+        vertices[index++] = line.Y;
+        vertices[index++] = 0.5;
+        vertices[index++] = 0.5;
+        vertices[index++] = 0.5;
+    }
 
     const vertexBuffer = device.createBuffer({
         size: vertices.byteLength,
@@ -79,15 +95,15 @@ async function init() {
                 {
                     shaderLocation: 0,
                     offset: 0,
-                    format: "float32x4",
+                    format: "float32x2",
                 },
                 {
                     shaderLocation: 1,
-                    offset: 16,
-                    format: "float32x4",
+                    offset: 8,
+                    format: "float32x3",
                 },
             ],
-            arrayStride: 32,
+            arrayStride: 20,
             stepMode: "vertex",
         },
     ];
@@ -145,7 +161,7 @@ async function init() {
     };
 
     const renderPipeline = device.createRenderPipeline(pipelineDescriptor);
-    device.queue.writeBuffer(uniformBuffer, 0, new Float32Array([0.5, -0.5]));
+    device.queue.writeBuffer(uniformBuffer, 0, new Float32Array([1, 1]));
 
     const commandEncoder = device.createCommandEncoder();
     const clearColor = { r: 0.1289, g: 0.1289, b: 0.1289, a: 1.0 };
@@ -165,7 +181,7 @@ async function init() {
     passEncoder.setPipeline(renderPipeline);
     passEncoder.setVertexBuffer(0, vertexBuffer);
     passEncoder.setBindGroup(0, bindGroup);
-    passEncoder.draw(6);
+    passEncoder.draw(lines.length);
 
     passEncoder.end();
     device.queue.submit([commandEncoder.finish()]);
