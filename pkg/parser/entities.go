@@ -31,32 +31,20 @@ func (p *parser) parseEntities(gxf *drawing.Gxf) {
         switch p.consumeNext() {
         case "LINE":
             p.consumeLine(gxf)
-        case "POLYLINE":
-            p.parseEntity()
+        case "LWPOLYLINE":
+            p.consumePolyline(gxf)
         case "ENDSEC":
             return
         default:
         }
 
+        if p.err != nil {
+            return
+        }
+
         for p.code != 0 {
             p.consume()
         }
-    }
-}
-
-func max(a float32, b float32) float32 {
-    if a > b {
-        return a
-    } else {
-        return b
-    }
-}
-
-func min(a float32, b float32) float32 {
-    if a < b {
-        return a
-    } else {
-        return b
     }
 }
 
@@ -69,22 +57,63 @@ func (p *parser) consumeLine(gxf *drawing.Gxf) {
 
     srcX := p.expectNextFloat(10)
     srcY := p.expectNextFloat(20)
-    _ = p.expectNextFloat(30)
+    p.discardIf(30) // z
 
     dstX := p.expectNextFloat(11)
     dstY := p.expectNextFloat(21)
-    _ = p.expectNextFloat(31)
+    p.discardIf(31) // z
 
-    gxf.BorderX[0] = min(gxf.BorderX[0], srcX)
-    gxf.BorderX[0] = min(gxf.BorderX[0], dstX)
-    gxf.BorderX[1] = max(gxf.BorderX[1], srcX)
-    gxf.BorderX[1] = max(gxf.BorderX[1], dstX)
-
-    gxf.BorderY[0] = min(gxf.BorderY[0], srcY)
-    gxf.BorderY[0] = min(gxf.BorderY[0], dstY)
-    gxf.BorderY[1] = max(gxf.BorderY[1], srcY)
-    gxf.BorderY[1] = max(gxf.BorderY[1], dstY)
+    gxf.UpdateBorder(srcX, dstX, srcY, dstY)
 
     gxf.Lines.Vertices = append(gxf.Lines.Vertices, drawing.Vertex{ X: srcX, Y: srcY })
     gxf.Lines.Vertices = append(gxf.Lines.Vertices, drawing.Vertex{ X: dstX, Y: dstY })
+}
+
+func (p *parser) consumePolyline(gxf *drawing.Gxf) {
+    p.parseEntity()
+
+    vertices := p.expectNextInt(90, decRadix)
+    flag     := p.expectNextInt(70, decRadix)
+    p.discardIf(43) // width for each vertex
+
+    srcX := float32(0)
+    srcY := float32(0)
+    
+    if vertices > 0 {
+        srcX = p.expectNextFloat(10)
+        srcY = p.expectNextFloat(20)
+        p.discardIf(30) // z
+        p.discardIf(40) // start width
+        p.discardIf(41) // end   width
+        p.discardIf(42) // TODO: calculate points for bulge
+        p.discardIf(91) // vertex ident
+    }
+
+    prvX := srcX
+    prvY := srcY
+
+    for i := uint32(1); i < vertices; i++ { 
+        nxtX := p.expectNextFloat(10)
+        nxtY := p.expectNextFloat(20)
+        p.discardIf(30) // z
+
+        gxf.UpdateBorder(prvX, nxtX, prvY, nxtY)
+
+        p.discardIf(40) // start width
+        p.discardIf(41) // end   width
+        p.discardIf(42) // TODO: calculate points for bulge
+
+        p.discardIf(91) // vertex ident
+
+        gxf.Lines.Vertices = append(gxf.Lines.Vertices, drawing.Vertex{ X: prvX, Y: prvY })
+        gxf.Lines.Vertices = append(gxf.Lines.Vertices, drawing.Vertex{ X: nxtX, Y: nxtY })
+
+        prvX = nxtX
+        prvY = nxtY
+    }
+
+    if flag & 1 == 1 {
+        gxf.Lines.Vertices = append(gxf.Lines.Vertices, drawing.Vertex{ X: prvX, Y: prvY })
+        gxf.Lines.Vertices = append(gxf.Lines.Vertices, drawing.Vertex{ X: srcX, Y: srcY })
+    }
 }

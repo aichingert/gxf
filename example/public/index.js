@@ -11,7 +11,6 @@ async function init() {
         const buffer = await content.arrayBuffer();
 
         const input = new Uint8Array(buffer);
-
         const plan = window.parse(input);
 
         setupWGPU(plan);
@@ -69,21 +68,19 @@ async function setupWGPU(plan) {
         alphaMode: "premultiplied",
     });
 
-    const minX = plan.BorderX[0];
-    const maxX = plan.BorderX[1];
-    const minY = plan.BorderY[0];
-    const maxY = plan.BorderY[1];
-
-    const denY = (maxY - minY) / 2;
-    const denX = (maxX - minX) / 2;
+    const denY = (plan.MaxY - plan.MinY) / 2;
+    const denX = (plan.MaxX - plan.MinX) / 2;
 
     const lines = plan.Lines.Vertices;
+
+    console.log(lines.length);
+
     const vertices = new Float32Array(lines.length * 5);
     let index = 0;
 
     for (line of lines) {
-        vertices[index++] = (line.X - minX) / denX - 1.0;
-        vertices[index++] = (line.Y - minY) / denY - 1.0;
+        vertices[index++] = (line.X - plan.MinX) / denX - 1.0;
+        vertices[index++] = (line.Y - plan.MinY) / denY - 1.0;
         vertices[index++] = 0.65;
         vertices[index++] = 0.65;
         vertices[index++] = 0.65;

@@ -3,6 +3,7 @@ package parser
 import (
     "fmt"
     "strconv"
+    "strings"
 
     "github.com/aichingert/gxf/pkg/drawing"
 )
@@ -85,7 +86,7 @@ func (p *parser) expectNextFloat(code uint16) float32 {
     defer p.consume()
 
     if p.code != code {
-        p.err = NewParseError(fmt.Sprintf("Expect float invalid code: expected %d got %d", code, p.code))
+        p.err = NewParseError(fmt.Sprintf("Expect float(invalid code): expected %d got %d", code, p.code))
         return 0.0
     }
 
@@ -93,4 +94,31 @@ func (p *parser) expectNextFloat(code uint16) float32 {
     p.err = err
 
     return float32(f32)
+}
+
+func (p *parser) expectNextInt(code uint16, radix int) uint32 {
+    if p.err != nil {
+        return 0
+    }
+    defer p.consume()
+
+    if p.code != code {
+        p.err = NewParseError(fmt.Sprintf("Expect int(invalid code): expected %d got %d", code, p.code))
+        return 0
+    }
+
+    u32, err := strconv.ParseInt(strings.TrimSpace(p.line), radix, 32)
+    p.err = err
+
+    return uint32(u32)
+}
+
+func (p *parser) discardIf(code uint16) {
+    if p.err != nil {
+        return
+    }
+
+    if p.code == code {
+        p.consume()
+    }
 }
