@@ -20,7 +20,7 @@ async function init() {
 
 async function setupWGPU(plan) {
     const shaders_src = `
-    struct WeirdTransform {
+    struct Camera {
         position: vec2f,
     }
 
@@ -29,15 +29,14 @@ async function setupWGPU(plan) {
         @location(0) color : vec4f
     }
 
-    @binding(0) @group(0) var<uniform> transform: WeirdTransform;
+    @binding(0) @group(0) var<uniform> camera: Camera;
 
     @vertex
     fn vertex_main(@location(0) position: vec2f,
                    @location(1) color: vec3f) -> VertexOut
     {
-
-        var x : f32 = transform.position.x * position.x;
-        var y : f32 = transform.position.y * position.y;
+        var x : f32 = camera.position.x * position.x;
+        var y : f32 = camera.position.y * position.y;
 
         var output : VertexOut;
         output.position = vec4f(x, y, 1.0, 1.0);
@@ -70,13 +69,24 @@ async function setupWGPU(plan) {
         alphaMode: "premultiplied",
     });
 
+    const minX = plan.BorderX[0];
+    const maxX = plan.BorderX[1];
+    const minY = plan.BorderY[0];
+    const maxY = plan.BorderY[1];
+
+    console.log(minX, maxX);
+    console.log(minY, maxY);
+
+    const denY = (maxY - minY) / 2;
+    const denX = (maxX - minX) / 2;
+
     const lines = plan.Lines.Vertices;
     const vertices = new Float32Array(lines.length * 5);
     let index = 0;
 
     for (line of lines) {
-        vertices[index++] = line.X;
-        vertices[index++] = line.Y;
+        vertices[index++] = line.X / denX - 1.0;
+        vertices[index++] = line.Y / denY - 1.0;
         vertices[index++] = 0.5;
         vertices[index++] = 0.5;
         vertices[index++] = 0.5;

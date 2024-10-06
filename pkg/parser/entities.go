@@ -44,6 +44,22 @@ func (p *parser) parseEntities(gxf *drawing.Gxf) {
     }
 }
 
+func max(a float32, b float32) float32 {
+    if a > b {
+        return a
+    } else {
+        return b
+    }
+}
+
+func min(a float32, b float32) float32 {
+    if a < b {
+        return a
+    } else {
+        return b
+    }
+}
+
 func (p *parser) consumeLine(gxf *drawing.Gxf) {
     p.parseEntity()
     // NOTE(code 39): not contained by any files I tested, stands for thickness
@@ -59,6 +75,16 @@ func (p *parser) consumeLine(gxf *drawing.Gxf) {
     dstY := p.expectNextFloat(21)
     _ = p.expectNextFloat(31)
 
-    gxf.Lines.Vertices = append(gxf.Lines.Vertices, drawing.Vertex{ X: 1. / srcX, Y: 1. / srcY })
-    gxf.Lines.Vertices = append(gxf.Lines.Vertices, drawing.Vertex{ X: 1. / dstX, Y: 1. / dstY })
+    gxf.BorderX[0] = min(gxf.BorderX[0], srcX)
+    gxf.BorderX[0] = min(gxf.BorderX[0], dstX)
+    gxf.BorderX[1] = max(gxf.BorderX[1], srcX)
+    gxf.BorderX[1] = max(gxf.BorderX[1], dstX)
+
+    gxf.BorderY[0] = min(gxf.BorderY[0], srcY)
+    gxf.BorderY[0] = min(gxf.BorderY[0], dstY)
+    gxf.BorderY[1] = max(gxf.BorderY[1], srcY)
+    gxf.BorderY[1] = max(gxf.BorderY[1], dstY)
+
+    gxf.Lines.Vertices = append(gxf.Lines.Vertices, drawing.Vertex{ X: srcX, Y: srcY })
+    gxf.Lines.Vertices = append(gxf.Lines.Vertices, drawing.Vertex{ X: dstX, Y: dstY })
 }

@@ -20,7 +20,7 @@ func ParseBuffer(buffer []byte) (*drawing.Gxf, error) {
     impl.bytes = buffer
 
     p := newParser(impl)
-    gxf := new(drawing.Gxf)
+    gxf := drawing.NewGxf()
 
     return p.parse(gxf)
 }
