@@ -52,8 +52,8 @@ async function setupWGPU(plan) {
     `;
 
     let canvas = document.getElementById("drawing");
-    canvas.width = canvas.clientWidth;
-    canvas.height = canvas.clientHeight;
+    canvas.width = canvas.clientWidth * window.devicePixelRatio;
+    canvas.height = canvas.clientHeight * window.devicePixelRatio;
 
     const adapter = await navigator.gpu.requestAdapter();
     const device = await adapter.requestDevice();
@@ -74,9 +74,6 @@ async function setupWGPU(plan) {
     const minY = plan.BorderY[0];
     const maxY = plan.BorderY[1];
 
-    console.log(minX, maxX);
-    console.log(minY, maxY);
-
     const denY = (maxY - minY) / 2;
     const denX = (maxX - minX) / 2;
 
@@ -85,11 +82,11 @@ async function setupWGPU(plan) {
     let index = 0;
 
     for (line of lines) {
-        vertices[index++] = line.X / denX - 1.0;
-        vertices[index++] = line.Y / denY - 1.0;
-        vertices[index++] = 0.5;
-        vertices[index++] = 0.5;
-        vertices[index++] = 0.5;
+        vertices[index++] = (line.X - minX) / denX - 1.0;
+        vertices[index++] = (line.Y - minY) / denY - 1.0;
+        vertices[index++] = 0.65;
+        vertices[index++] = 0.65;
+        vertices[index++] = 0.65;
     }
 
     const vertexBuffer = device.createBuffer({
