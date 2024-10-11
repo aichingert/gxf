@@ -29,14 +29,10 @@ L:
     for {
         switch p.consumeNext() {
         case "SECTION":
-        case "HEADER":
-            p.consumeUntil("ENDSEC")
-        case "TABLES":
-            p.consumeUntil("ENDSEC")
         case "BLOCKS":
-            p.consumeUntil("ENDSEC")
+            p.parseBlocks(gxf)
         case "ENTITIES":
-            p.parseEntities(gxf)
+            p.parseEntities(&gxf.Lines, &gxf.Polygons)
         case "EOF":
             break L
         default:

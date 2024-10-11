@@ -6,6 +6,28 @@ import (
     "github.com/aichingert/gxf/pkg/drawing"
 )
 
+func (p *parser) parseEntities(lines *drawing.Mesh, polygon *drawing.Mesh) {
+    for {
+        switch p.consumeNext() {
+        case "LINE":
+            p.consumeLine(lines)
+        case "LWPOLYLINE":
+            p.consumePolyline(lines)
+        case "ENDSEC":
+            return
+        default:
+        }
+
+        if p.err != nil {
+            return
+        }
+
+        for p.code != 0 {
+            p.consume()
+        }
+    }
+}
+
 func (p *parser) parseEntity() uint8 {
     for !strings.HasPrefix(p.consumeNext(), "AcDb") {
     }
@@ -26,29 +48,7 @@ func (p *parser) parseEntity() uint8 {
     return 0
 }
 
-func (p *parser) parseEntities(gxf *drawing.Gxf) {
-    for {
-        switch p.consumeNext() {
-        case "LINE":
-            p.consumeLine(gxf)
-        case "LWPOLYLINE":
-            p.consumePolyline(gxf)
-        case "ENDSEC":
-            return
-        default:
-        }
-
-        if p.err != nil {
-            return
-        }
-
-        for p.code != 0 {
-            p.consume()
-        }
-    }
-}
-
-func (p *parser) consumeLine(gxf *drawing.Gxf) {
+func (p *parser) consumeLine(lines *drawing.Mesh) {
     p.parseEntity()
     // NOTE(code 39): not contained by any files I tested, stands for thickness
     if p.code == 39 {
@@ -65,11 +65,11 @@ func (p *parser) consumeLine(gxf *drawing.Gxf) {
 
     gxf.UpdateBorder(srcX, dstX, srcY, dstY)
 
-    gxf.Lines.Vertices = append(gxf.Lines.Vertices, drawing.Vertex{ X: srcX, Y: srcY })
-    gxf.Lines.Vertices = append(gxf.Lines.Vertices, drawing.Vertex{ X: dstX, Y: dstY })
+    lines.Vertices = append(lines.Vertices, drawing.Vertex{ X: srcX, Y: srcY })
+    lines.Vertices = append(lines.Vertices, drawing.Vertex{ X: dstX, Y: dstY })
 }
 
-func (p *parser) consumePolyline(gxf *drawing.Gxf) {
+func (p *parser) consumePolyline(lines *drawing.Mesh) {
     p.parseEntity()
 
     vertices := p.expectNextInt(90, decRadix)
@@ -105,15 +105,15 @@ func (p *parser) consumePolyline(gxf *drawing.Gxf) {
 
         p.discardIf(91) // vertex ident
 
-        gxf.Lines.Vertices = append(gxf.Lines.Vertices, drawing.Vertex{ X: prvX, Y: prvY })
-        gxf.Lines.Vertices = append(gxf.Lines.Vertices, drawing.Vertex{ X: nxtX, Y: nxtY })
+        lines.Vertices = append(lines.Vertices, drawing.Vertex{ X: prvX, Y: prvY })
+        lines.Vertices = append(lines.Vertices, drawing.Vertex{ X: nxtX, Y: nxtY })
 
         prvX = nxtX
         prvY = nxtY
     }
 
     if flag & 1 == 1 {
-        gxf.Lines.Vertices = append(gxf.Lines.Vertices, drawing.Vertex{ X: prvX, Y: prvY })
-        gxf.Lines.Vertices = append(gxf.Lines.Vertices, drawing.Vertex{ X: srcX, Y: srcY })
+        lines.Vertices = append(lines.Vertices, drawing.Vertex{ X: prvX, Y: prvY })
+        lines.Vertices = append(lines.Vertices, drawing.Vertex{ X: srcX, Y: srcY })
     }
 }

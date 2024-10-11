@@ -13,6 +13,7 @@ import (
 func TestMain(m *testing.M) {
     _, err := os.ReadFile("test.dxf")
 
+
     if err != nil {
         panic("Test file not found!")
     }
@@ -26,5 +27,6 @@ func Test_ParsingDxfFile_ToGxf(t *testing.T) {
 
     plan, err := gxf.Parse(bytes)
 
-    fmt.Println(plan)
+    _ = plan
+    fmt.Println(err)
 }
