@@ -6,13 +6,13 @@ import (
     "github.com/aichingert/gxf/pkg/drawing"
 )
 
-func (p *parser) parseEntities(lines *drawing.Mesh, polygon *drawing.Mesh) {
+func (p *parser) parseEntities(gxf *drawing.Gxf) {
     for {
         switch p.consumeNext() {
         case "LINE":
-            p.consumeLine(lines)
+            p.consumeLine(gxf)
         case "LWPOLYLINE":
-            p.consumePolyline(lines)
+            p.consumePolyline(gxf)
         case "ENDSEC":
             return
         default:
@@ -48,7 +48,7 @@ func (p *parser) parseEntity() uint8 {
     return 0
 }
 
-func (p *parser) consumeLine(lines *drawing.Mesh) {
+func (p *parser) consumeLine(gxf *drawing.Gxf) {
     p.parseEntity()
     // NOTE(code 39): not contained by any files I tested, stands for thickness
     if p.code == 39 {
@@ -65,11 +65,11 @@ func (p *parser) consumeLine(lines *drawing.Mesh) {
 
     gxf.UpdateBorder(srcX, dstX, srcY, dstY)
 
-    lines.Vertices = append(lines.Vertices, drawing.Vertex{ X: srcX, Y: srcY })
-    lines.Vertices = append(lines.Vertices, drawing.Vertex{ X: dstX, Y: dstY })
+    gxf.Lines.Vertices = append(gxf.Lines.Vertices, drawing.Vertex{ X: srcX, Y: srcY })
+    gxf.Lines.Vertices = append(gxf.Lines.Vertices, drawing.Vertex{ X: dstX, Y: dstY })
 }
 
-func (p *parser) consumePolyline(lines *drawing.Mesh) {
+func (p *parser) consumePolyline(gxf *drawing.Gxf) {
     p.parseEntity()
 
     vertices := p.expectNextInt(90, decRadix)
@@ -105,15 +105,15 @@ func (p *parser) consumePolyline(lines *drawing.Mesh) {
 
         p.discardIf(91) // vertex ident
 
-        lines.Vertices = append(lines.Vertices, drawing.Vertex{ X: prvX, Y: prvY })
-        lines.Vertices = append(lines.Vertices, drawing.Vertex{ X: nxtX, Y: nxtY })
+        gxf.Lines.Vertices = append(gxf.Lines.Vertices, drawing.Vertex{ X: prvX, Y: prvY })
+        gxf.Lines.Vertices = append(gxf.Lines.Vertices, drawing.Vertex{ X: nxtX, Y: nxtY })
 
         prvX = nxtX
         prvY = nxtY
     }
 
     if flag & 1 == 1 {
-        lines.Vertices = append(lines.Vertices, drawing.Vertex{ X: prvX, Y: prvY })
-        lines.Vertices = append(lines.Vertices, drawing.Vertex{ X: srcX, Y: srcY })
+        gxf.Lines.Vertices = append(gxf.Lines.Vertices, drawing.Vertex{ X: prvX, Y: prvY })
+        gxf.Lines.Vertices = append(gxf.Lines.Vertices, drawing.Vertex{ X: srcX, Y: srcY })
     }
 }

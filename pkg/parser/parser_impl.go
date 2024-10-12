@@ -32,7 +32,7 @@ L:
         case "BLOCKS":
             p.parseBlocks(gxf)
         case "ENTITIES":
-            p.parseEntities(&gxf.Lines, &gxf.Polygons)
+            p.parseEntities(gxf)
         case "EOF":
             break L
         default:
