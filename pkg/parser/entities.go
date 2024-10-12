@@ -6,20 +6,24 @@ import (
     "github.com/aichingert/gxf/pkg/drawing"
 )
 
-func (p *parser) parseEntities(gxf *drawing.Gxf) {
+func (p *parser) parseEntities() *drawing.Mesh {
+    mesh := drawing.NewMesh()
+    bnds := drawing.NewBounds()
+
     for {
         switch p.consumeNext() {
         case "LINE":
-            p.consumeLine(gxf)
+            p.consumeLine(mesh, bnds)
         case "LWPOLYLINE":
-            p.consumePolyline(gxf)
+            p.consumePolyline(mesh, bnds)
         case "ENDSEC":
-            return
+            mesh.Scale(bnds)
+            return mesh
         default:
         }
 
         if p.err != nil {
-            return
+            return mesh
         }
 
         for p.code != 0 {
@@ -48,7 +52,7 @@ func (p *parser) parseEntity() uint8 {
     return 0
 }
 
-func (p *parser) consumeLine(gxf *drawing.Gxf) {
+func (p *parser) consumeLine(lines *drawing.Mesh, bnds *drawing.Bounds) {
     p.parseEntity()
     // NOTE(code 39): not contained by any files I tested, stands for thickness
     if p.code == 39 {
@@ -63,57 +67,47 @@ func (p *parser) consumeLine(gxf *drawing.Gxf) {
     dstY := p.expectNextFloat(21)
     p.discardIf(31) // z
 
-    gxf.UpdateBorder(srcX, dstX, srcY, dstY)
-
-    gxf.Lines.Vertices = append(gxf.Lines.Vertices, drawing.Vertex{ X: srcX, Y: srcY })
-    gxf.Lines.Vertices = append(gxf.Lines.Vertices, drawing.Vertex{ X: dstX, Y: dstY })
+    lines.Vertices = append(lines.Vertices, drawing.NewVertex(srcX, srcY))
+    lines.Vertices = append(lines.Vertices, drawing.NewVertex(dstX, dstY))
+    bnds.UpdateX([]float32{srcX, dstX})
+    bnds.UpdateY([]float32{srcY, dstY})
 }
 
-func (p *parser) consumePolyline(gxf *drawing.Gxf) {
+func (p *parser) consumePolyline(lines *drawing.Mesh, bnds *drawing.Bounds) {
     p.parseEntity()
 
     vertices := p.expectNextInt(90, decRadix)
-    flag     := p.expectNextInt(70, decRadix)
+    if vertices < 0 { return }
+
+    flag := p.expectNextInt(70, decRadix)
     p.discardIf(43) // width for each vertex
 
-    srcX := float32(0)
-    srcY := float32(0)
-    
-    if vertices > 0 {
-        srcX = p.expectNextFloat(10)
-        srcY = p.expectNextFloat(20)
+    xs := []float32{}
+    ys := []float32{}
+
+    for i := uint32(0); i < vertices; i++ { 
+        xs = append(xs, p.expectNextFloat(10))
+        ys = append(ys, p.expectNextFloat(20))
         p.discardIf(30) // z
-        p.discardIf(40) // start width
-        p.discardIf(41) // end   width
-        p.discardIf(42) // TODO: calculate points for bulge
-        p.discardIf(91) // vertex ident
-    }
-
-    prvX := srcX
-    prvY := srcY
-
-    for i := uint32(1); i < vertices; i++ { 
-        nxtX := p.expectNextFloat(10)
-        nxtY := p.expectNextFloat(20)
-        p.discardIf(30) // z
-
-        gxf.UpdateBorder(prvX, nxtX, prvY, nxtY)
 
         p.discardIf(40) // start width
         p.discardIf(41) // end   width
         p.discardIf(42) // TODO: calculate points for bulge
 
         p.discardIf(91) // vertex ident
+        l := len(xs)
 
-        gxf.Lines.Vertices = append(gxf.Lines.Vertices, drawing.Vertex{ X: prvX, Y: prvY })
-        gxf.Lines.Vertices = append(gxf.Lines.Vertices, drawing.Vertex{ X: nxtX, Y: nxtY })
-
-        prvX = nxtX
-        prvY = nxtY
+        if l > 1 {
+            lines.Vertices = append(lines.Vertices, drawing.NewVertex(xs[l - 2], ys[l - 2]))
+            lines.Vertices = append(lines.Vertices, drawing.NewVertex(xs[l - 1], ys[l - 1]))
+        }
     }
 
     if flag & 1 == 1 {
-        gxf.Lines.Vertices = append(gxf.Lines.Vertices, drawing.Vertex{ X: prvX, Y: prvY })
-        gxf.Lines.Vertices = append(gxf.Lines.Vertices, drawing.Vertex{ X: srcX, Y: srcY })
+        lines.Vertices = append(lines.Vertices, drawing.NewVertex(xs[len(xs) - 2], ys[len(xs) - 2]))
+        lines.Vertices = append(lines.Vertices, drawing.NewVertex(xs[0], ys[0]))
     }
+
+    bnds.UpdateX(xs)
+    bnds.UpdateY(ys)
 }

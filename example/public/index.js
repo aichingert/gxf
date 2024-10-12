@@ -72,18 +72,15 @@ async function setupWGPU(plan) {
     const denX = (plan.MaxX - plan.MinX) / 2;
 
     const lines = plan.Lines.Vertices;
-
-    console.log(lines.length);
-
     const vertices = new Float32Array(lines.length * 5);
     let index = 0;
 
     for (line of lines) {
-        vertices[index++] = (line.X - plan.MinX) / denX - 1.0;
-        vertices[index++] = (line.Y - plan.MinY) / denY - 1.0;
-        vertices[index++] = 0.65;
-        vertices[index++] = 0.65;
-        vertices[index++] = 0.65;
+        vertices[index++] = line.X;
+        vertices[index++] = line.Y;
+        vertices[index++] = line.R;
+        vertices[index++] = line.G;
+        vertices[index++] = line.B;
     }
 
     const vertexBuffer = device.createBuffer({

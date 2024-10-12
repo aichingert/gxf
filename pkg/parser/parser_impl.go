@@ -32,7 +32,8 @@ L:
         case "BLOCKS":
             p.parseBlocks(gxf)
         case "ENTITIES":
-            p.parseEntities(gxf)
+            // TODO: check if parser has error first 
+            gxf.Lines = *p.parseEntities()
         case "EOF":
             break L
         default:
@@ -118,3 +119,4 @@ func (p *parser) discardIf(code uint16) {
         p.consume()
     }
 }
+
