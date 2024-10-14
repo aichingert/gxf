@@ -1,9 +1,6 @@
 package drawing
 
-import (
-    "fmt"
-    "math"
-)
+import "math"
 
 type Vertex struct {
     X       float32

@@ -29,6 +29,9 @@ L:
     for {
         switch p.consumeNext() {
         case "SECTION":
+        case "TABLES":
+            layers := p.parseTables()
+            fmt.Println(layers)
         case "BLOCKS":
             p.parseBlocks(gxf)
         case "ENTITIES":
@@ -74,6 +77,10 @@ func (p *parser) consumeNext() string {
 
 func (p *parser) consumeUntil(label string) {
     for p.consumeNext() != label {}
+}
+
+func (p *parser) consumeUntilPrefix(label string) {
+    for !strings.HasPrefix(p.consumeNext(), label) {}
 }
 
 func (p *parser) expectNextFloat(code uint16) float32 {
