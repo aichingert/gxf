@@ -64,12 +64,12 @@ func (b *Bounds) UpdateY(ys []float32) {
     }
 }
 
-func NewVertex(x float32, y float32) Vertex {
+func NewVertex(x float32, y float32, rgb []uint8) Vertex {
     return Vertex{
         X: x,
         Y: y,
-        R: 0.65,
-        G: 0.65,
-        B: 0.65,
+        R: float32(rgb[0]) / 255.,
+        G: float32(rgb[1]) / 255.,
+        B: float32(rgb[2]) / 255.,
     }
 }

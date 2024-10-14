@@ -6,16 +6,16 @@ import (
     "github.com/aichingert/gxf/pkg/drawing"
 )
 
-func (p *parser) parseEntities() *drawing.Mesh {
+func (p *parser) parseEntities(gxf *drawing.Gxf) *drawing.Mesh {
     mesh := drawing.NewMesh()
     bnds := drawing.NewBounds()
 
     for {
         switch p.consumeNext() {
         case "LINE":
-            p.consumeLine(mesh, bnds)
+            p.consumeLine(gxf, mesh, bnds)
         case "LWPOLYLINE":
-            p.consumePolyline(mesh, bnds)
+            p.consumePolyline(gxf, mesh, bnds)
         case "ENDSEC":
             mesh.Scale(bnds)
             return mesh
@@ -32,7 +32,7 @@ func (p *parser) parseEntities() *drawing.Mesh {
     }
 }
 
-func (p *parser) parseEntity() uint8 {
+func (p *parser) parseEntity() string {
     for !strings.HasPrefix(p.consumeNext(), "AcDb") {
     }
     // NOTE(code 67): is an optional paper space visibility and is not used so we skip it
@@ -48,12 +48,12 @@ func (p *parser) parseEntity() uint8 {
     for !strings.HasPrefix(p.consumeNext(), "AcDb") {
     }
 
-    _ = line
-    return 0
+    return line
 }
 
-func (p *parser) consumeLine(lines *drawing.Mesh, bnds *drawing.Bounds) {
-    p.parseEntity()
+func (p *parser) consumeLine(gxf *drawing.Gxf, lines *drawing.Mesh, bnds *drawing.Bounds) {
+    layer := p.parseEntity()
+
     // NOTE(code 39): not contained by any files I tested, stands for thickness
     if p.code == 39 {
         p.consume()
@@ -67,14 +67,14 @@ func (p *parser) consumeLine(lines *drawing.Mesh, bnds *drawing.Bounds) {
     dstY := p.expectNextFloat(21)
     p.discardIf(31) // z
 
-    lines.Vertices = append(lines.Vertices, drawing.NewVertex(srcX, srcY))
-    lines.Vertices = append(lines.Vertices, drawing.NewVertex(dstX, dstY))
+    lines.Vertices = append(lines.Vertices, drawing.NewVertex(srcX, srcY, gxf.Layers[layer]))
+    lines.Vertices = append(lines.Vertices, drawing.NewVertex(dstX, dstY, gxf.Layers[layer]))
     bnds.UpdateX([]float32{srcX, dstX})
     bnds.UpdateY([]float32{srcY, dstY})
 }
 
-func (p *parser) consumePolyline(lines *drawing.Mesh, bnds *drawing.Bounds) {
-    p.parseEntity()
+func (p *parser) consumePolyline(gxf *drawing.Gxf, lines *drawing.Mesh, bnds *drawing.Bounds) {
+    layer := p.parseEntity()
 
     vertices := p.expectNextInt(90, decRadix)
     if vertices < 0 { return }
@@ -98,14 +98,14 @@ func (p *parser) consumePolyline(lines *drawing.Mesh, bnds *drawing.Bounds) {
         l := len(xs)
 
         if l > 1 {
-            lines.Vertices = append(lines.Vertices, drawing.NewVertex(xs[l - 2], ys[l - 2]))
-            lines.Vertices = append(lines.Vertices, drawing.NewVertex(xs[l - 1], ys[l - 1]))
+            lines.Vertices = append(lines.Vertices, drawing.NewVertex(xs[l - 2], ys[l - 2], gxf.Layers[layer]))
+            lines.Vertices = append(lines.Vertices, drawing.NewVertex(xs[l - 1], ys[l - 1], gxf.Layers[layer]))
         }
     }
 
     if flag & 1 == 1 {
-        lines.Vertices = append(lines.Vertices, drawing.NewVertex(xs[len(xs) - 2], ys[len(xs) - 2]))
-        lines.Vertices = append(lines.Vertices, drawing.NewVertex(xs[0], ys[0]))
+        lines.Vertices = append(lines.Vertices, drawing.NewVertex(xs[len(xs) - 2], ys[len(xs) - 2], gxf.Layers[layer]))
+        lines.Vertices = append(lines.Vertices, drawing.NewVertex(xs[0], ys[0], gxf.Layers[layer]))
     }
 
     bnds.UpdateX(xs)

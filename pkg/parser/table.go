@@ -3,12 +3,11 @@ package parser
 import (
     "fmt"
 
-    _ "github.com/aichingert/gxf/pkg/drawing"
+    "github.com/aichingert/gxf/pkg/color"
+    "github.com/aichingert/gxf/pkg/drawing"
 )
 
-func (p *parser) parseTables() map[string]uint8 {
-    layers := make(map[string]uint8)
-
+func (p *parser) parseTables(gxf *drawing.Gxf) {
     for {
         switch p.consumeNext() {
         case "TABLE":
@@ -24,9 +23,9 @@ func (p *parser) parseTables() map[string]uint8 {
                 if p.consumeNext() == "AcDbLayerTableRecord" {
                     layerName := p.consumeNext()
                     p.discardIf(70)
-                    color := p.expectNextInt(62, decRadix)
-
-                    layers[layerName] = uint8(color)
+                    colorIdx := p.expectNextInt(62, decRadix)
+                    
+                    gxf.Layers[layerName] = color.DxfColorToRGB[colorIdx]
                 }
 
                 for p.code != 0 {
@@ -40,13 +39,13 @@ func (p *parser) parseTables() map[string]uint8 {
 
             p.consumeUntil("ENDTAB")
         case "ENDSEC":
-            return layers
+            return
         default:
             p.err = NewParseError(fmt.Sprintf("invalid block value %s", p.line))
         }
 
         if p.err != nil {
-            return layers
+            return
         }
 
         for p.code != 0 {

@@ -30,13 +30,12 @@ L:
         switch p.consumeNext() {
         case "SECTION":
         case "TABLES":
-            layers := p.parseTables()
-            fmt.Println(layers)
+            p.parseTables(gxf)
         case "BLOCKS":
             p.parseBlocks(gxf)
         case "ENTITIES":
             // TODO: check if parser has error first 
-            gxf.Lines = *p.parseEntities()
+            gxf.Lines = *p.parseEntities(gxf)
         case "EOF":
             break L
         default:
