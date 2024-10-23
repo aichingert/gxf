@@ -20,20 +20,19 @@ documentation for dxf can be found at https://ezdxf.mozman.at/docs/dxfentities/i
 
 == examples
 
-this parser has zero dependencies and will continue to have none and is also pretty easy to integrate
-in a website via webassembly there is also an example in the examples folder showing how to use the wasm package.
+There is a simple webassembly example that is using the new WebGPU feature of modern browsers (Firefox needs the nightly version)
+to showcase how to use the buffers created from the parser.
 
-.wasm example rendering via canvas
-image::images/wasm-example.png[]
-
-github.com/aichingert/dxf/tree/main/examples/wasm[wasm example^]
+#TODO: Add image of the example#
 
 == support
 
+early developement and still need to make a lot of decisions so it could change a lot.
+
 [%interactive]
-* [x] header
+* [ ] header (Not intended) 
 * [ ] tables
-* [x] blocks
+* [ ] blocks
 * [ ] entities
 
 == contributing
