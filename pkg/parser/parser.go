@@ -22,14 +22,7 @@ func ParseBuffer(buffer []byte) (*drawing.Gxf, error) {
 
     p := newParser(impl)
 
-
-    // TODO: next step is block parsing.
-
-    // Idea 1:
-    // A temporary solution would be to put the blocks into the parser and just calculate the positions
-    // when parsing and put the values directly in the buffer again and not use the block reference.
-
-    // Idea 2:
+    // Idea:
     // Using instancing with the gpu to not store to not make the buffers too large. Have to research
     // if it is costly to instance many different meshes because most of the times there are many blocks.
 
