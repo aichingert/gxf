@@ -84,6 +84,7 @@ func (p *parser) consumePolyline(gxf *drawing.Gxf, lines *drawing.Mesh, bnds *dr
 
     xs := []float32{}
     ys := []float32{}
+    l := 0
 
     for i := uint32(0); i < vertices; i++ { 
         xs = append(xs, p.expectNextFloat(10))
@@ -93,9 +94,9 @@ func (p *parser) consumePolyline(gxf *drawing.Gxf, lines *drawing.Mesh, bnds *dr
         p.discardIf(40) // start width
         p.discardIf(41) // end   width
         p.discardIf(42) // TODO: calculate points for bulge
-
         p.discardIf(91) // vertex ident
-        l := len(xs)
+
+        l = len(xs)
 
         if l > 1 {
             lines.Vertices = append(lines.Vertices, drawing.NewVertex(xs[l - 2], ys[l - 2], gxf.Layers[layer]))
@@ -104,7 +105,7 @@ func (p *parser) consumePolyline(gxf *drawing.Gxf, lines *drawing.Mesh, bnds *dr
     }
 
     if flag & 1 == 1 {
-        lines.Vertices = append(lines.Vertices, drawing.NewVertex(xs[len(xs) - 2], ys[len(xs) - 2], gxf.Layers[layer]))
+        lines.Vertices = append(lines.Vertices, drawing.NewVertex(xs[l - 1], ys[l - 1], gxf.Layers[layer]))
         lines.Vertices = append(lines.Vertices, drawing.NewVertex(xs[0], ys[0], gxf.Layers[layer]))
     }
 

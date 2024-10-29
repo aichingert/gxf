@@ -1,4 +1,4 @@
-ackage parser
+package parser
 
 import (
     "fmt"
