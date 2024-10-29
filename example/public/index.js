@@ -34,8 +34,8 @@ async function setupWGPU(plan) {
     fn vertex_main(@location(0) position: vec2f,
                    @location(1) color: vec3f) -> VertexOut
     {
-        var x : f32 = camera.position.x * position.x;
-        var y : f32 = camera.position.y * position.y;
+        var x : f32 = camera.position.x + position.x;
+        var y : f32 = camera.position.y + position.y;
 
         var output : VertexOut;
         output.position = vec4f(x, y, 1.0, 1.0);
@@ -162,30 +162,46 @@ async function setupWGPU(plan) {
     };
 
     const renderPipeline = device.createRenderPipeline(pipelineDescriptor);
-    device.queue.writeBuffer(uniformBuffer, 0, new Float32Array([1, 1]));
+    let x = 0.001;
+    let fx = 1;
 
-    const commandEncoder = device.createCommandEncoder();
-    const clearColor = { r: 0.1289, g: 0.1289, b: 0.1289, a: 1.0 };
+    while (true) {
+        await new Promise(r => setTimeout(r, 10));
 
-    const renderPassDescriptor = {
-        colorAttachments: [
-            {
-                clearValue: clearColor,
-                loadOp: "clear",
-                storeOp: "store",
-                view: context.getCurrentTexture().createView(),
-            },
-        ],
-    };
+        if (x > 0.5) {
+            fx = -1;
+        } 
+        if (x < -0.5) {
+            fx = 1;
+        }
 
-    const passEncoder = commandEncoder.beginRenderPass(renderPassDescriptor);
-    passEncoder.setPipeline(renderPipeline);
-    passEncoder.setVertexBuffer(0, vertexBuffer);
-    passEncoder.setBindGroup(0, bindGroup);
-    passEncoder.draw(lines.length);
+        x += 0.01 * fx;
 
-    passEncoder.end();
-    device.queue.submit([commandEncoder.finish()]);
+        device.queue.writeBuffer(uniformBuffer, 0, new Float32Array([x, 0]));
+
+        const commandEncoder = device.createCommandEncoder();
+        const clearColor = { r: 0.1289, g: 0.1289, b: 0.1289, a: 1.0 };
+
+        const renderPassDescriptor = {
+            colorAttachments: [
+                {
+                    clearValue: clearColor,
+                    loadOp: "clear",
+                    storeOp: "store",
+                    view: context.getCurrentTexture().createView(),
+                },
+            ],
+        };
+
+        const passEncoder = commandEncoder.beginRenderPass(renderPassDescriptor);
+        passEncoder.setPipeline(renderPipeline);
+        passEncoder.setVertexBuffer(0, vertexBuffer);
+        passEncoder.setBindGroup(0, bindGroup);
+        passEncoder.draw(lines.length);
+
+        passEncoder.end();
+        device.queue.submit([commandEncoder.finish()]);
+    }
 }
 
 window.onload = init;
