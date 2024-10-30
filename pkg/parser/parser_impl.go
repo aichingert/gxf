@@ -35,7 +35,9 @@ L:
             p.parseBlocks(gxf)
         case "ENTITIES":
             // TODO: check if parser has error first 
-            gxf.Lines = *p.parseEntities(gxf)
+            lines, b := p.parseEntities(gxf.Layers)
+            gxf.Lines = *lines
+            _ = b
         case "EOF":
             break L
         default:

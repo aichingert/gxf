@@ -166,7 +166,7 @@ async function setupWGPU(plan) {
     let fx = 1;
 
     while (true) {
-        await new Promise(r => setTimeout(r, 10));
+        await new Promise(r => setTimeout(r, 1));
 
         if (x > 0.5) {
             fx = -1;
