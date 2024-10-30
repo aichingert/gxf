@@ -1,7 +1,6 @@
 package parser
 
 import (
-    //"os"
     "fmt"
 
     "github.com/aichingert/gxf/pkg/drawing"
@@ -38,9 +37,6 @@ func (p *parser) parseBlocks(gxf *drawing.Gxf) {
 
             p.discardIf(3)
             p.discardIf(1)
-
-            fmt.Println(name)
-            fmt.Println(p.code)
 
             // parse entities
             gxf.Blocks[name] = p.parseEntities(gxf.Layers, nil)

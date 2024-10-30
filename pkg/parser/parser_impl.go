@@ -63,6 +63,7 @@ func (p *parser) consume() {
         p.err = err
         return
     }
+
     if err := p.impl.consumeLine(&p.line); err != nil {
         p.err = err
     }
@@ -79,7 +80,7 @@ func (p *parser) consumeNext() string {
 }
 
 func (p *parser) consumeUntil(label string) {
-    for p.consumeNext() != label {}
+    for p.err == nil && p.consumeNext() != label {}
 }
 
 func (p *parser) consumeUntilPrefix(label string) {
@@ -93,13 +94,23 @@ func (p *parser) expectNextFloat(code uint16) float32 {
     defer p.consume()
 
     if p.code != code {
-        p.err = NewParseError(fmt.Sprintf("Expect float(invalid code): expected %d got %d", code, p.code))
+        p.err = NewParseError(fmt.Sprintf("Float: expected %d got %d", code, p.code))
         return 0.0
     }
 
     f32, err := strconv.ParseFloat(p.line, 32)
     p.err = err
+    return float32(f32)
+}
 
+func (p *parser) consumeFloatIf(code uint16, def float32) float32 {
+    if p.err != nil || p.code != code {
+        return def
+    }
+    defer p.consume()
+
+    f32, err := strconv.ParseFloat(p.line, 32)
+    p.err = err
     return float32(f32)
 }
 

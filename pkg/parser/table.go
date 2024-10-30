@@ -41,7 +41,7 @@ func (p *parser) parseTables(gxf *drawing.Gxf) {
         case "ENDSEC":
             return
         default:
-            p.err = NewParseError(fmt.Sprintf("invalid block value %s", p.line))
+            p.err = NewParseError(fmt.Sprintf("invalid table value %s", p.line))
         }
 
         if p.err != nil {

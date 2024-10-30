@@ -65,6 +65,11 @@ func NewBounds() *Bounds {
     }
 }
 
+func (b *Bounds) UpdateWithScale(other *Bounds, sx float32, sy float32) {
+    b.UpdateX([]float32{other.minX * sx, other.maxX * sx})
+    b.UpdateY([]float32{other.minY * sy, other.maxY * sy})
+}
+
 func (b *Bounds) UpdateX(xs []float32) {
     for _, x := range xs {
         if b.minX > x { b.minX = x }

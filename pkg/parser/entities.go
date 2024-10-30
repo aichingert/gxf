@@ -15,7 +15,11 @@ func (p *parser) parseEntities(layers map[string][]uint8, blocks map[string]*dra
             p.consumeLine(layers, block.Lines, block.Bounds)
         case "LWPOLYLINE":
             p.consumePolyline(layers, block.Lines, block.Bounds)
+        case "INSERT":
+            p.consumeInsert(block, blocks)
         case "ENDSEC":
+            return block
+        case "ENDBLK":
             return block
         default:
         }
@@ -113,19 +117,26 @@ func (p *parser) consumeInsert(block *drawing.Block, blocks map[string]*drawing.
     y := p.expectNextFloat(20)
     p.discardIf(30)
 
-    xs := p.expectNextFloat(41)
-    ys := p.expectNextFloat(42)
+    sx := p.consumeFloatIf(41, 1.0)
+    sy := p.consumeFloatIf(42, 1.0)
     p.discardIf(43)
 
-    rot := p.expectNextFloat(50)
+    rot := p.consumeFloatIf(50, 0.0)
 
-    _ = name
-    _ = x
-    _ = y
-    _ = xs
-    _ = ys
+    scaleVertices := func(ref *drawing.Mesh, to *drawing.Mesh) {
+        for vert := range ref.Vertices {
+            scaledVert := ref.Vertices[vert]
+            scaledVert.X = scaledVert.X * sx + x
+            scaledVert.Y = scaledVert.Y * sy + y
+
+            to.Vertices = append(to.Vertices, scaledVert)
+        }
+    }
+
+    blockRef := blocks[name]
+    block.Bounds.UpdateWithScale(blockRef.Bounds, sx, sy)
+    scaleVertices(blockRef.Lines, block.Lines)
+    scaleVertices(blockRef.Triangles, block.Triangles)
+
     _ = rot
-
-    _ = block
-    _ = blocks
 }

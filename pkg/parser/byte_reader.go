@@ -20,6 +20,7 @@ func (b *byteReader) consumeCode(code *uint16) error {
     bCode, err := strconv.ParseUint(strings.TrimSpace(string(buf)), decRadix, 16)
     *code = uint16(bCode)
 
+    Line++
     return err
 }
 
@@ -38,12 +39,13 @@ func (b *byteReader) consumeLine(line *string) error {
     }
 
     *line = string(buf[:len(buf) - offset])
+    Line++
     return nil
 }
 
 func (b *byteReader) readUntil(delim byte) ([]byte, error) {
     if b.index >= len(b.bytes) {
-        return nil, NewParseError("EOF")
+        return nil, NewParseError("[ByteReader] Unexpected EOF")
     }
 
     src := b.index
@@ -57,7 +59,7 @@ func (b *byteReader) readUntil(delim byte) ([]byte, error) {
     }
 
     if b.index >= len(b.bytes) {
-        return nil, NewParseError("EOF")
+        return nil, NewParseError("[ByteReader] Unexpected EOF")
     }
 
     b.index++

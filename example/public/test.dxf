@@ -2839,26 +2839,6 @@ AcDbEntity
   8
 10_yellow
   0
-INSERT
-  5
-2FD5
-330
-1F
-100
-AcDbEntity
-  8
-10_yellow
-100
-AcDbBlockReference
-  2
-QRCode
- 10
-1650.0
- 20
-230.0
- 30
-0.0
-  0
 ENDSEC
   0
 SECTION
