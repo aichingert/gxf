@@ -122,6 +122,8 @@ func (p *parser) consumeInsert(block *drawing.Block, blocks map[string]*drawing.
     p.discardIf(43)
 
     rot := p.consumeFloatIf(50, 0.0)
+    xs := []float32{}
+    ys := []float32{}
 
     scaleVertices := func(ref *drawing.Mesh, to *drawing.Mesh) {
         for vert := range ref.Vertices {
@@ -129,14 +131,19 @@ func (p *parser) consumeInsert(block *drawing.Block, blocks map[string]*drawing.
             scaledVert.X = scaledVert.X * sx + x
             scaledVert.Y = scaledVert.Y * sy + y
 
+            xs = append(xs, scaledVert.X)
+            ys = append(ys, scaledVert.Y)
+
             to.Vertices = append(to.Vertices, scaledVert)
         }
     }
 
     blockRef := blocks[name]
-    block.Bounds.UpdateWithScale(blockRef.Bounds, sx, sy)
+    
     scaleVertices(blockRef.Lines, block.Lines)
     scaleVertices(blockRef.Triangles, block.Triangles)
+    block.Bounds.UpdateX(xs)
+    block.Bounds.UpdateY(ys)
 
     _ = rot
 }
