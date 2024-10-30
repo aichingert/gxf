@@ -1,19 +1,16 @@
 package drawing
 
 type Gxf struct {
-    Lines Mesh
-    Polygons Mesh
+    Plan    *Block
 
-    Blocks map[string]*Mesh
-    Layers map[string][]uint8
+    Blocks  map[string]*Block
+    Layers  map[string][]uint8
 }
 
 func NewGxf() *Gxf {
     return &Gxf{
-        Lines: Mesh{},
-        Polygons: Mesh{}, 
-
-        Blocks: make(map[string]*Mesh),
+        Plan:   nil,
+        Blocks: make(map[string]*Block),
         Layers: make(map[string][]uint8),
     }
 }

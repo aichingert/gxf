@@ -2,17 +2,24 @@ package drawing
 
 import "math"
 
+type Block struct {
+    Lines       *Mesh
+    Triangles   *Mesh
+
+    Bounds      *Bounds
+}
+
+type Mesh struct {
+    Indices     []uint32
+    Vertices    []Vertex
+}
+
 type Vertex struct {
     X       float32
     Y       float32
     R       float32
     G       float32
     B       float32
-}
-
-type Mesh struct {
-    Indices     []uint32
-    Vertices    []Vertex
 }
 
 type Bounds struct {
@@ -23,10 +30,18 @@ type Bounds struct {
     maxY float32
 }
 
+func NewBlock() *Block {
+    return &Block {
+        Lines:      NewMesh(),
+        Triangles:  NewMesh(),
+        Bounds:     NewBounds(),
+    }
+}
+
 func NewMesh() *Mesh {
     return &Mesh {
-        Indices: []uint32{},
-        Vertices: []Vertex{},
+        Indices:    []uint32{},
+        Vertices:   []Vertex{},
     }
 }
 
@@ -43,10 +58,10 @@ func (m *Mesh) Scale(bounds *Bounds) {
 func NewBounds() *Bounds {
     return &Bounds{
         minX: math.MaxFloat32,
-        maxX: -50_000.0,
+        maxX: -1_000_000.0,
 
         minY: math.MaxFloat32,
-        maxY: -50_000.0,
+        maxY: -1_000_000.0,
     }
 }
 

@@ -6,23 +6,22 @@ import (
     "github.com/aichingert/gxf/pkg/drawing"
 )
 
-func (p *parser) parseEntities(layers map[string][]uint8) (*drawing.Mesh, *drawing.Bounds) {
-    mesh := drawing.NewMesh()
-    bnds := drawing.NewBounds()
+func (p *parser) parseEntities(layers map[string][]uint8, blocks map[string]*drawing.Block) *drawing.Block {
+    block := drawing.NewBlock()
 
     for {
         switch p.consumeNext() {
         case "LINE":
-            p.consumeLine(layers, mesh, bnds)
+            p.consumeLine(layers, block.Lines, block.Bounds)
         case "LWPOLYLINE":
-            p.consumePolyline(layers, mesh, bnds)
+            p.consumePolyline(layers, block.Lines, block.Bounds)
         case "ENDSEC":
-            return mesh, bnds
+            return block
         default:
         }
 
         if p.err != nil {
-            return nil, nil
+            return nil
         }
 
         for p.code != 0 {
@@ -103,4 +102,30 @@ func (p *parser) consumePolyline(layers map[string][]uint8, lines *drawing.Mesh,
 
     bnds.UpdateX(xs)
     bnds.UpdateY(ys)
+}
+
+func (p *parser) consumeInsert(block *drawing.Block, blocks map[string]*drawing.Block) {
+    _ = p.parseEntity()
+
+    p.discardIf(66)
+    name := p.consumeNext()
+    x := p.expectNextFloat(10)
+    y := p.expectNextFloat(20)
+    p.discardIf(30)
+
+    xs := p.expectNextFloat(41)
+    ys := p.expectNextFloat(42)
+    p.discardIf(43)
+
+    rot := p.expectNextFloat(50)
+
+    _ = name
+    _ = x
+    _ = y
+    _ = xs
+    _ = ys
+    _ = rot
+
+    _ = block
+    _ = blocks
 }

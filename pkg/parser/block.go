@@ -43,9 +43,7 @@ func (p *parser) parseBlocks(gxf *drawing.Gxf) {
             fmt.Println(p.code)
 
             // parse entities
-            mesh, bnds := p.parseEntities(gxf.Layers)
-            _ = bnds
-            _ = mesh
+            gxf.Blocks[name] = p.parseEntities(gxf.Layers, nil)
 
             // parse block end
             p.consumeUntil("AcDbBlockEnd")
