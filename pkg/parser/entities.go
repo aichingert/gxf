@@ -138,6 +138,10 @@ func (p *parser) consumeInsert(block *drawing.Block, blocks map[string]*drawing.
         }
     }
 
+    if blocks[name] == nil {
+        return
+    }
+
     blockRef := blocks[name]
     
     scaleVertices(blockRef.Lines, block.Lines)

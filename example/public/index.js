@@ -71,7 +71,6 @@ async function setupWGPU(plan) {
     const denY = (plan.MaxY - plan.MinY) / 2;
     const denX = (plan.MaxX - plan.MinX) / 2;
 
-    //console.log(plan);
     const lines = plan.Plan.Lines.Vertices;
     const vertices = new Float32Array(lines.length * 5);
     let index = 0;
@@ -176,7 +175,7 @@ async function setupWGPU(plan) {
             fx = 1;
         }
 
-        //x += 0.01 * fx;
+        x += 0.01 * fx;
 
         device.queue.writeBuffer(uniformBuffer, 0, new Float32Array([x, 0]));
 

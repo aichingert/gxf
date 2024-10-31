@@ -39,7 +39,7 @@ func (p *parser) parseBlocks(gxf *drawing.Gxf) {
             p.discardIf(1)
 
             // parse entities
-            gxf.Blocks[name] = p.parseEntities(gxf.Layers, nil)
+            gxf.Blocks[name] = p.parseEntities(gxf.Layers, gxf.Blocks)
 
             // parse block end
             p.consumeUntil("AcDbBlockEnd")
