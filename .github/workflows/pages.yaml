@@ -12,9 +12,24 @@ jobs:
     steps:
     - uses: actions/checkout@v4
 
+    - name: Set up Go
+      uses: actions/setup-go@v5
+      with:
+        go-version: '>=1.22'
+
+    - name: Install and Build
+      run: |
+        mkdir -p dist
+        cd wasm
+        ./build
+        mv main.wasm ../dist
+        cd ../dist
+        cp ../example/public/index.html .
+        cp ../example/public/index.js .
+        curl https://raw.githubusercontent.com/golang/go/refs/heads/master/lib/wasm/wasm_exec.js > wasm_exec.js
+
     - name: Deploy
       uses: JamesIves/github-pages-deploy-action@v4
       with:
-        GITHUB_TOKEN: ${{ github.TOKEN }}
-        BRANCH: gh-pages
-        FOLDER: dist
+        folder: dist
+        ssh-key: ${{ secrets.DEPLOY_KEY }}
