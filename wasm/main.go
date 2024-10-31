@@ -20,7 +20,7 @@ func Parse() js.Func {
         plan, err := gxf.Parse(buffer)
 
         if err != nil {
-            return "Error: parsing dxf file"
+            return err.Error()
         }
 
         var value map[string]interface{}
