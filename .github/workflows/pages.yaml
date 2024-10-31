@@ -2,7 +2,7 @@ name: Deploy example
 
 on:
   push:
-    branches: [ "main" ]
+    branches: [ "main", "gh-pages" ]
   pull_request:
     branches: [ "main" ]
 
