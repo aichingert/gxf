@@ -8,7 +8,6 @@
 *.so
 *.dylib
 *.idea
-*.wasm
 
 # Test binary, built with `go test -c`
 *.test
@@ -22,4 +21,3 @@
 # Go workspace file
 go.work
 go.work.sum
-wasm_exec.js
