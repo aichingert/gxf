@@ -20,12 +20,8 @@ jobs:
     - name: Install and Build
       run: |
         mkdir -p dist
-        ls -lha
         cd wasm
-        ls -lha
-        chmod +x build
-        ./build
-        ls -lha
+        ./build.sh
         mv main.wasm ../dist
         cd ../dist
         cp ../example/public/index.html .
