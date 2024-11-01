@@ -26,6 +26,7 @@ jobs:
         cd ../dist
         cp ../example/public/index.html .
         cp ../example/public/index.js .
+        cp ../example/public/test.dxf .
         curl https://raw.githubusercontent.com/golang/go/refs/heads/master/lib/wasm/wasm_exec.js > wasm_exec.js
 
     - name: Deploy
