@@ -8,7 +8,7 @@ async function init() {
         go.run(obj.instance);
 
         const content = await fetch("test.dxf");
-        const input = new Uint8Array(content.arrayBuffer());
+        const input = new Uint8Array(await content.arrayBuffer());
         const plan = window.parse(input);
 
         setupWGPU(plan);
@@ -20,7 +20,7 @@ async function setupWGPU(plan) {
     canvas.width = canvas.clientWidth * window.devicePixelRatio;
     canvas.height = canvas.clientHeight * window.devicePixelRatio; 
 
-    if (!navigator.gpu || true) {
+    if (!navigator.gpu) {
         const errorHeader = document.createElement("h1");
         errorHeader.style.color = "white";
 
@@ -66,18 +66,28 @@ async function setupWGPU(plan) {
     }
     `; 
 
-    const adapter = await navigator.gpu.requestAdapter();
+    let adapter;
+
+    try {
+        adapter = await navigator.gpu.requestAdapter();
+    } catch (e) {
+        const errorHeader = document.createElement("h1");
+        errorHeader.style.color = "white";
+
+        const errorText = document.createTextNode(
+            "This browser does not support Wgpu!"
+        );
+
+        errorHeader.appendChild(errorText);
+        document.body.insertBefore(errorHeader, document.getElementById("dummy"));
+
+        return;
+    }
+
     const device = await adapter.requestDevice();
 
     const shaderModule = device.createShaderModule({
         code: shaders_src,
-    });
-
-    const context = canvas.getContext("webgpu");
-    context.configure({
-        device: device,
-        format: navigator.gpu.getPreferredCanvasFormat(),
-        alphaMode: "premultiplied",
     });
 
     const denY = (plan.MaxY - plan.MinY) / 2;
@@ -174,6 +184,13 @@ async function setupWGPU(plan) {
     };
 
     const renderPipeline = device.createRenderPipeline(pipelineDescriptor);
+    const context = canvas.getContext("webgpu");
+    context.configure({
+        device: device,
+        format: navigator.gpu.getPreferredCanvasFormat(),
+        alphaMode: "premultiplied",
+    });
+
     let x = 0.001;
     let fx = 1;
 
