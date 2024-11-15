@@ -49,6 +49,27 @@ L:
         }
     }
 
+    offset := 0
+    if len(gxf.BlockOffsets) > 0 {
+        offset = int(gxf.BlockOffsets[len(gxf.BlockOffsets) - 1][0])
+    }
+
+    for l := range (len(gxf.Data.Lines.Vertices) - offset) / 5 {
+        if gxf.Data.MinX > gxf.Data.Lines.Vertices[l * 5 + offset] {
+            gxf.Data.MinX = gxf.Data.Lines.Vertices[l * 5 + offset] 
+        }
+        if gxf.Data.MaxX < gxf.Data.Lines.Vertices[l * 5 + offset] {
+            gxf.Data.MaxX = gxf.Data.Lines.Vertices[l * 5 + offset] 
+        }
+
+        if gxf.Data.MinY > gxf.Data.Lines.Vertices[l * 5 + offset + 1] {
+            gxf.Data.MinY = gxf.Data.Lines.Vertices[l * 5 + offset + 1] 
+        }
+        if gxf.Data.MaxY < gxf.Data.Lines.Vertices[l * 5 + offset + 1] {
+            gxf.Data.MaxY = gxf.Data.Lines.Vertices[l * 5 + offset + 1] 
+        }
+    }
+
     return gxf, nil
 }
 

@@ -3,12 +3,22 @@ package drawing
 type Obj struct {
     Lines       *Mesh
     Triangles   *Mesh
+
+    MinX        float32
+    MaxX        float32
+    MinY        float32
+    MaxY        float32
 }
 
 func NewObj() *Obj {
     return &Obj {
         Lines:      NewMesh(),
         Triangles:  NewMesh(),
+
+        MinX:       1_000_000,
+        MinY:       1_000_000,
+        MaxX:       -1_000_000,
+        MaxY:       -1_000_000,
     }
 }
 

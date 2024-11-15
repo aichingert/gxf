@@ -8,7 +8,7 @@ import (
 )
 
 func (p *parser) parseTables(gxf *drawing.Gxf) map[string][]uint8 {
-    var layers map[string][]uint8
+    layers := make(map[string][]uint8)
 
     for {
         switch p.consumeNext() {

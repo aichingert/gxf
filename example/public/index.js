@@ -36,7 +36,8 @@ async function setupWGPU(plan) {
 
     const shaders_src = `
     struct Camera {
-        position: vec4f,
+        denom: vec2f,
+        small: vec2f,
     }
 
     struct VertexOut {
@@ -50,8 +51,8 @@ async function setupWGPU(plan) {
     fn vertex_main(@location(0) position: vec2f,
                    @location(1) color: vec3f) -> VertexOut
     {
-        var x : f32 = camera.position.x * position.x;
-        var y : f32 = camera.position.y * position.y;
+        var x: f32 = (position.x - camera.small.x) / camera.denom.x - 1.0;
+        var y: f32 = (position.y - camera.small.y) / camera.denom.y - 1.0;
 
         var output : VertexOut;
         output.position = vec4f(x, y, 1.0, 1.0);
@@ -90,23 +91,13 @@ async function setupWGPU(plan) {
         code: shaders_src,
     });
 
-    const denY = (plan.MaxY - plan.MinY) / 2;
-    const denX = (plan.MaxX - plan.MinX) / 2;
-
-    console.log(plan);
-    const lines = plan.Plan.Lines.Vertices;
-    const mx = plan.Plan.MX;
-    const my = plan.Plan.MY;
-    const vertices = new Float32Array(lines.length * 5);
-    let index = 0;
-
-    for (let i = 0; i < lines.length; i++) {
-        vertices[index++] = lines[i].X;
-        vertices[index++] = lines[i].Y;
-        vertices[index++] = lines[i].R;
-        vertices[index++] = lines[i].G;
-        vertices[index++] = lines[i].B;
+    let offset = 0;
+    if (plan.BlockOffsets.length > 0) {
+        offset = plan.BlockOffsets[plan.BlockOffsets.length - 1][0];
     }
+
+    const full = new Float32Array(plan.Data.Lines.Vertices);
+    const vertices = new Float32Array(full.subarray(offset, full.length));
 
     const vertexBuffer = device.createBuffer({
         size: vertices.byteLength,
@@ -198,19 +189,14 @@ async function setupWGPU(plan) {
     let s = 0.001;
     let fx = 1;
 
+    console.log(plan);
+    const xd = (plan.Data.MaxX - plan.Data.MinX) / 2.;
+    const yd = (plan.Data.MaxY - plan.Data.MinY) / 2.;
+
     while (true) {
         await new Promise(r => setTimeout(r, 1));
 
-        if (s > 10) {
-            fx = -1;
-        } 
-        if (s < 0) {
-            fx = 1;
-        }
-
-        s += 0.01 * fx;
-
-        device.queue.writeBuffer(uniformBuffer, 0, new Float32Array([s, s, 0, 0]));
+        device.queue.writeBuffer(uniformBuffer, 0, new Float32Array([xd, yd, plan.Data.MinX, plan.Data.MinY]));
 
         const commandEncoder = device.createCommandEncoder();
         const clearColor = { r: 0.1289, g: 0.1289, b: 0.1289, a: 1.0 };
@@ -230,7 +216,7 @@ async function setupWGPU(plan) {
         passEncoder.setPipeline(renderPipeline);
         passEncoder.setVertexBuffer(0, vertexBuffer);
         passEncoder.setBindGroup(0, bindGroup);
-        passEncoder.draw(lines.length);
+        passEncoder.draw(vertices.length / 5);
 
         passEncoder.end();
         device.queue.submit([commandEncoder.finish()]);
