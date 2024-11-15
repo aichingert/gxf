@@ -8,9 +8,7 @@ async function init() {
         go.run(obj.instance);
 
         const content = await fetch("test.dxf");
-        const buffer = await content.arrayBuffer();
-
-        const input = new Uint8Array(buffer);
+        const input = new Uint8Array(await content.arrayBuffer());
         const plan = window.parse(input);
 
         setupWGPU(plan);
@@ -18,6 +16,24 @@ async function init() {
 }
 
 async function setupWGPU(plan) {
+    let canvas = document.getElementById("drawing");
+    canvas.width = canvas.clientWidth * window.devicePixelRatio;
+    canvas.height = canvas.clientHeight * window.devicePixelRatio; 
+
+    if (!navigator.gpu) {
+        const errorHeader = document.createElement("h1");
+        errorHeader.style.color = "white";
+
+        const errorText = document.createTextNode(
+            "This browser does not support Wgpu!"
+        );
+
+        errorHeader.appendChild(errorText);
+        document.body.insertBefore(errorHeader, document.getElementById("dummy"));
+
+        return;
+    }
+
     const shaders_src = `
     struct Camera {
         position: vec4f,
@@ -48,24 +64,30 @@ async function setupWGPU(plan) {
     {
         return fragData.color;
     }
-    `;
+    `; 
 
-    let canvas = document.getElementById("drawing");
-    canvas.width = canvas.clientWidth * window.devicePixelRatio;
-    canvas.height = canvas.clientHeight * window.devicePixelRatio;
+    let adapter;
 
-    const adapter = await navigator.gpu.requestAdapter();
+    try {
+        adapter = await navigator.gpu.requestAdapter();
+    } catch (e) {
+        const errorHeader = document.createElement("h1");
+        errorHeader.style.color = "white";
+
+        const errorText = document.createTextNode(
+            "This browser does not support Wgpu!"
+        );
+
+        errorHeader.appendChild(errorText);
+        document.body.insertBefore(errorHeader, document.getElementById("dummy"));
+
+        return;
+    }
+
     const device = await adapter.requestDevice();
 
     const shaderModule = device.createShaderModule({
         code: shaders_src,
-    });
-
-    const context = canvas.getContext("webgpu");
-    context.configure({
-        device: device,
-        format: navigator.gpu.getPreferredCanvasFormat(),
-        alphaMode: "premultiplied",
     });
 
     const denY = (plan.MaxY - plan.MinY) / 2;
@@ -165,6 +187,14 @@ async function setupWGPU(plan) {
     };
 
     const renderPipeline = device.createRenderPipeline(pipelineDescriptor);
+
+    const context = canvas.getContext("webgpu");
+    context.configure({
+        device: device,
+        format: navigator.gpu.getPreferredCanvasFormat(),
+        alphaMode: "premultiplied",
+    });
+
     let s = 0.001;
     let fx = 1;
 
