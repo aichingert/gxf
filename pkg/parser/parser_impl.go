@@ -25,21 +25,19 @@ func newParser(impl reader) *parser {
 }
 
 func (p *parser) parse(gxf *drawing.Gxf) (*drawing.Gxf, error) {
+    var layers map[string][]uint8
+
 L:
     for {
         switch p.consumeNext() {
         case "SECTION":
         case "TABLES":
-            p.parseTables(gxf)
+            layers = p.parseTables(gxf)
         case "BLOCKS":
-            p.parseBlocks(gxf)
+            p.parseBlocks(gxf, layers)
         case "ENTITIES":
             // TODO: check if parser has error first 
-            plan := p.parseEntities(gxf.Layers, gxf.Blocks)
-            plan.Lines.Scale(plan.Bounds)
-            plan.Triangles.Scale(plan.Bounds)
-
-            gxf.Plan = plan
+            p.parseEntities(gxf, layers)
         case "EOF":
             break L
         default:

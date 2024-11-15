@@ -7,13 +7,13 @@ import (
     "github.com/aichingert/gxf/pkg/drawing"
 )
 
-func (p *parser) parseTables(gxf *drawing.Gxf) {
+func (p *parser) parseTables(gxf *drawing.Gxf) map[string][]uint8 {
+    var layers map[string][]uint8
+
     for {
         switch p.consumeNext() {
         case "TABLE":
-            tableType := p.consumeNext()
-
-            if tableType != "LAYER" {
+            if p.consumeNext() != "LAYER" {
                 p.consumeUntil("ENDTAB")
                 continue
             }
@@ -25,7 +25,7 @@ func (p *parser) parseTables(gxf *drawing.Gxf) {
                     p.discardIf(70)
                     colorIdx := p.expectNextInt(62, decRadix)
                     
-                    gxf.Layers[layerName] = color.DxfColorToRGB[colorIdx]
+                    layers[layerName] = color.DxfColorToRGB[colorIdx]
                 }
 
                 for p.code != 0 {
@@ -39,13 +39,13 @@ func (p *parser) parseTables(gxf *drawing.Gxf) {
 
             p.consumeUntil("ENDTAB")
         case "ENDSEC":
-            return
+            return layers
         default:
             p.err = NewParseError(fmt.Sprintf("invalid table value %s", p.line))
         }
 
         if p.err != nil {
-            return
+            return layers
         }
 
         for p.code != 0 {
