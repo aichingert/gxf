@@ -36,7 +36,7 @@ async function setupWGPU(plan) {
 
     const shaders_src = `
     struct Camera {
-        position: vec2f,
+        position: vec4f,
     }
 
     struct VertexOut {
@@ -50,8 +50,8 @@ async function setupWGPU(plan) {
     fn vertex_main(@location(0) position: vec2f,
                    @location(1) color: vec3f) -> VertexOut
     {
-        var x : f32 = camera.position.x + position.x;
-        var y : f32 = camera.position.y + position.y;
+        var x : f32 = camera.position.x * position.x;
+        var y : f32 = camera.position.y * position.y;
 
         var output : VertexOut;
         output.position = vec4f(x, y, 1.0, 1.0);
@@ -93,16 +93,19 @@ async function setupWGPU(plan) {
     const denY = (plan.MaxY - plan.MinY) / 2;
     const denX = (plan.MaxX - plan.MinX) / 2;
 
+    console.log(plan);
     const lines = plan.Plan.Lines.Vertices;
+    const mx = plan.Plan.MX;
+    const my = plan.Plan.MY;
     const vertices = new Float32Array(lines.length * 5);
     let index = 0;
 
-    for (line of lines) {
-        vertices[index++] = line.X;
-        vertices[index++] = line.Y;
-        vertices[index++] = line.R;
-        vertices[index++] = line.G;
-        vertices[index++] = line.B;
+    for (let i = 0; i < lines.length; i++) {
+        vertices[index++] = lines[i].X;
+        vertices[index++] = lines[i].Y;
+        vertices[index++] = lines[i].R;
+        vertices[index++] = lines[i].G;
+        vertices[index++] = lines[i].B;
     }
 
     const vertexBuffer = device.createBuffer({
@@ -132,7 +135,7 @@ async function setupWGPU(plan) {
     ];
 
     const uniformBuffer = device.createBuffer({
-        size: 8,
+        size: 16,
         usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST,
     })
 
@@ -184,6 +187,7 @@ async function setupWGPU(plan) {
     };
 
     const renderPipeline = device.createRenderPipeline(pipelineDescriptor);
+
     const context = canvas.getContext("webgpu");
     context.configure({
         device: device,
@@ -191,22 +195,22 @@ async function setupWGPU(plan) {
         alphaMode: "premultiplied",
     });
 
-    let x = 0.001;
+    let s = 0.001;
     let fx = 1;
 
     while (true) {
         await new Promise(r => setTimeout(r, 1));
 
-        if (x > 0.5) {
+        if (s > 10) {
             fx = -1;
         } 
-        if (x < -0.5) {
+        if (s < 0) {
             fx = 1;
         }
 
-        x += 0.01 * fx;
+        s += 0.01 * fx;
 
-        device.queue.writeBuffer(uniformBuffer, 0, new Float32Array([x, 0]));
+        device.queue.writeBuffer(uniformBuffer, 0, new Float32Array([s, s, 0, 0]));
 
         const commandEncoder = device.createCommandEncoder();
         const clearColor = { r: 0.1289, g: 0.1289, b: 0.1289, a: 1.0 };
