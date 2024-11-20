@@ -97,12 +97,23 @@ async function setupWGPU(plan) {
     }
 
     const full = new Float32Array(plan.Data.Lines.Vertices);
+
     const vertices = new Float32Array(full.subarray(offset, full.length));
 
     const vertexBuffer = device.createBuffer({
-        size: vertices.byteLength,
+        size: full.byteLength,
         usage: GPUBufferUsage.VERTEX | GPUBufferUsage.COPY_DST,
     });
+    
+    const lamp = plan.BlockNameRes["STANDARD_SPOT"];
+    console.log(plan.InstanceData[lamp]);
+
+    let size = 0;
+
+    //const instanceBuffer = device.createBuffer({
+
+    //});
+
 
     device.queue.writeBuffer(vertexBuffer, 0, vertices, 0, vertices.length);
 
