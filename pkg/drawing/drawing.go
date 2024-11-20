@@ -9,15 +9,15 @@ type Gxf struct {
     Data            *Obj
 
     BlockOffsets    [][2]uint32
+    InstanceData    [][][4]float32
     BlockNameRes    map[string]uint16
-    InstanceData    map[string][][4]float32
 }
 
 func NewGxf() *Gxf {
     return &Gxf {
         Data:           NewObj(),
         BlockOffsets:   [][2]uint32{},
+        InstanceData:   [][][4]float32{},
         BlockNameRes:   make(map[string]uint16),
-        InstanceData:   make(map[string][][4]float32),
     }
 }

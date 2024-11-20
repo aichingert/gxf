@@ -110,7 +110,9 @@ func (p *parser) consumeInsert(gxf *drawing.Gxf) {
     p.discardIf(43)
 
     rot := p.consumeFloatIf(50, 0.0)
+    instance := gxf.BlockNameRes[name]
 
-    gxf.InstanceData[name] = append(gxf.InstanceData[name], [4]float32{x, y, sx, sy})
+    gxf.InstanceData[instance] = append(gxf.InstanceData[instance], [4]float32{x, y, sx, sy})
+
     _ = rot
 }

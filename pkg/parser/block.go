@@ -30,8 +30,10 @@ func (p *parser) parseBlocks(gxf *drawing.Gxf, layers map[string][]uint8) {
 
             lLen := uint32(len(gxf.Data.Lines.Vertices))
             tLen := uint32(len(gxf.Data.Triangles.Vertices))
-            gxf.BlockOffsets = append(gxf.BlockOffsets, [2]uint32{lLen, tLen})
             gxf.BlockNameRes[name] = uint16(len(gxf.BlockOffsets))
+
+            gxf.InstanceData = append(gxf.InstanceData, [][4]float32{})
+            gxf.BlockOffsets = append(gxf.BlockOffsets, [2]uint32{lLen, tLen})
 
             p.consumeUntil("AcDbBlockEnd")
         case "ENDSEC":
